@@ -165,7 +165,7 @@ public sealed class Tabs : ISettingsTab
                 if (tab.Channel == InputChannel.Tell && player != null)
                 {
                     ImGui.Checkbox(Language.Options_Tabs_SenderMessages, ref tab.AllSenderMessages);
-                    ImGuiUtil.HelpText(Language.Options_Help_SenderMessages);
+                    ImGuiUtil.HelpText(Language.Options_Help_SenderMessagesV2);
 
                     var worlds = Sheets.WorldsOnDatacenter(player).OrderByDescending(world => world.DataCenter.RowId).ThenBy(world => world.Name.ToString()).ToList();
 
@@ -210,14 +210,20 @@ public sealed class Tabs : ISettingsTab
                     var target = (Plugin.TargetManager.SoftTarget ?? Plugin.TargetManager.Target) as IPlayerCharacter;
                     using (ImRaii.Disabled(target == null))
                     {
-                        if (ImGui.Button("Set to target") && target != null)
+                        if (ImGui.Button(Language.Options_Tab_SetTarget) && target != null)
                             tab.TellTarget.FromTarget(target);
                     }
                 }
             }
 
+            using var disabled = ImRaii.Disabled(tab.Channel == InputChannel.Tell);
             ImGuiUtil.ChannelSelector(Language.Options_Tabs_Channels, tab.SelectedChannels);
+            if (tab.Channel == InputChannel.Tell && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip(Language.Options_Tabs_TellTabChannelSelection);
+
             ImGuiUtil.ExtraChatSelector(Language.Options_Tabs_ExtraChatChannels, ref tab.ExtraChatAll, tab.ExtraChatChannels);
+            if (tab.Channel == InputChannel.Tell && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip(Language.Options_Tabs_TellTabChannelSelection);
         }
 
         if (toRemove > -1)

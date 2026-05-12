@@ -75,6 +75,7 @@ public partial class InputPreview : Window
             PreviewMessage = Message.FakeMessage(chunks, new ChatCode(XivChatType.Say, 0, 0));
             PreviewMessage.DecodeTextParam();
         }
+
         HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1;
     }
 

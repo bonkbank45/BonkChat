@@ -8,7 +8,7 @@ public class TellTarget
 {
     public string Name { get; set; }
     public uint World { get; set; }
-    public ulong ContentId { get; private set; }
+    public ulong ContentId { get; set; }
     public TellReason Reason { get; private set; }
 
     public TellTarget(string name, uint world, ulong contentId, TellReason reason)

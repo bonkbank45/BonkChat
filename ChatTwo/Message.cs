@@ -4,6 +4,7 @@ using ChatTwo.Util;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using System.Text.RegularExpressions;
+using ChatTwo.GameFunctions.Types;
 using Dalamud.Game.Text;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -89,6 +90,14 @@ public partial class Message
         return Code.Type.IsGm()
                || channels.TryGetValue(Code.Type, out var sources)
                && (Code.Source is 0 || sources.Source.HasFlag(source) || sources.Target.HasFlag(target));
+    }
+
+    public bool MatchTellTarget(TellTarget tellTarget, bool allChannelsFromSender)
+    {
+        if (!allChannelsFromSender && Code.Type != ChatType.TellIncoming && Code.Type != ChatType.TellOutgoing)
+            return false;
+
+        return tellTarget.ContentId == ContentId;
     }
 
     private int GenerateHash()

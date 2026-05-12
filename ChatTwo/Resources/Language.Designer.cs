@@ -2599,11 +2599,11 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to This disables the channel selection and shows all messages coming from the target..
+        ///   Looks up a localized string similar to Shows all messages coming from the target..
         /// </summary>
-        internal static string Options_Help_SenderMessages {
+        internal static string Options_Help_SenderMessagesV2 {
             get {
-                return ResourceManager.GetString("Options_Help_SenderMessages", resourceCulture);
+                return ResourceManager.GetString("Options_Help_SenderMessagesV2", resourceCulture);
             }
         }
         
@@ -3364,6 +3364,15 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Set to target.
+        /// </summary>
+        internal static string Options_Tab_SetTarget {
+            get {
+                return ResourceManager.GetString("Options_Tab_SetTarget", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Add.
         /// </summary>
         internal static string Options_Tabs_Add {
@@ -3594,6 +3603,15 @@ namespace ChatTwo.Resources {
         internal static string Options_Tabs_Tab {
             get {
                 return ResourceManager.GetString("Options_Tabs_Tab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Channel selection is disabled for tell tabs..
+        /// </summary>
+        internal static string Options_Tabs_TellTabChannelSelection {
+            get {
+                return ResourceManager.GetString("Options_Tabs_TellTabChannelSelection", resourceCulture);
             }
         }
         

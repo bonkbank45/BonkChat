@@ -287,6 +287,17 @@ public class Tab
 
     public bool Matches(Message message)
     {
+        if (TellTarget.IsSet())
+        {
+            if (TellTarget.ContentId == 0)
+            {
+                if (message.SenderSource.TextValue == TellTarget.ToTargetString().Replace("@", " "))
+                    TellTarget.ContentId = message.ContentId;
+            }
+
+            return message.MatchTellTarget(TellTarget, AllSenderMessages);
+        }
+
         return message.Matches(SelectedChannels, ExtraChatAll, ExtraChatChannels);
     }
 
