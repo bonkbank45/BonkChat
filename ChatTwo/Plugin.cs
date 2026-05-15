@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Numerics;
 using ChatTwo.Http;
 using ChatTwo.Ipc;
 using ChatTwo.Resources;
@@ -68,6 +69,8 @@ public sealed class Plugin : IDalamudPlugin
     public int DeferredSaveFrames = -1;
 
     public DateTime GameStarted { get; }
+
+    public Vector4 DefaultText = Vector4.Zero;
 
     // Tab management needs to happen outside the chatlog window class for access reasons
     public int LastTab { get; set; }
@@ -235,10 +238,10 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        ChatLog.IsHidden = ChatLog.HideStateCheck(ref ChatLog.CurrentHideState, Config.HideInBattle, Config.HideDuringCutscenes, Config.HideWhenNotLoggedIn, ChatLog.InputHandler.Activate);
+        ChatLog.IsHidden = HideStateHelper.HideStateCheck(ChatLog, Config.HideInBattle, Config.HideDuringCutscenes, Config.HideWhenNotLoggedIn, ChatLog.InputHandler.Activate);
 
         Interface.UiBuilder.DisableUserUiHide = !Config.HideWhenUiHidden;
-        ChatLog.InputHandler.DefaultText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+        DefaultText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
 
         using ((Config.FontsEnabled ? FontManager.RegularFont : FontManager.Axis).Push())
             WindowSystem.Draw();

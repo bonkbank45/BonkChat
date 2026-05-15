@@ -21,14 +21,13 @@ public class InputHandler
     private const ImGuiInputTextFlags InputFlags = ImGuiInputTextFlags.CallbackAlways | ImGuiInputTextFlags.CallbackCharFilter |
                                                    ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.CallbackHistory;
 
+    public readonly Plugin Plugin;
     public readonly IChatWindow MainWindow;
-    private readonly Plugin Plugin;
 
     public readonly SendHandler SendHandler;
     public readonly AutoCompleteHandler AutoCompleteHandler;
-    public PayloadHandler PayloadHandler;
-
-    public Vector4 DefaultText = Vector4.Zero;
+    public readonly PayloadHandler PayloadHandler;
+    public readonly ChunkHandler ChunkHandler;
 
     public string ChatInput = string.Empty;
 
@@ -53,13 +52,12 @@ public class InputHandler
         InputHandlerId = id;
 
         SendHandler = new SendHandler(plugin);
+        ChunkHandler = new ChunkHandler(plugin);
+        PayloadHandler = new PayloadHandler(this);
         AutoCompleteHandler = new AutoCompleteHandler(this);
-
-        // This gets reassigned every frame
-        PayloadHandler = null!;
     }
 
-    public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial, ref HideState state)
+    public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
         var inputType = activeTab.CurrentChannel.UseTempChannel
             ? activeTab.CurrentChannel.TempChannel.ToChatType()
@@ -168,7 +166,7 @@ public class InputHandler
                 {
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
                     if (ImGui.Selectable(Language.ChatLog_HideChat))
-                        state = HideState.User;
+                        MainWindow.CurrentHideState = HideState.User;
                 }
             }
         }

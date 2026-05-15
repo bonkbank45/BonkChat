@@ -288,10 +288,10 @@ public class DbViewer : Window
                 ImGuiUtil.Tooltip(message.Code.Type.Name());
 
             ImGui.TableNextColumn();
-            Plugin.ChatLog.DrawChunks(message.Sender);
+            Plugin.ChatLog.InputHandler.ChunkHandler.DrawChunks(message.Sender);
 
             ImGui.TableNextColumn();
-            Plugin.ChatLog.DrawChunks(message.Content);
+            Plugin.ChatLog.InputHandler.ChunkHandler.DrawChunks(message.Content);
         }
     }
 
@@ -580,12 +580,12 @@ public class DbViewer : Window
             color ??= 0;
 
             var userContent = text.Content;
-            if (Plugin.ChatLog.ScreenshotMode)
+            if (PlayerUtil.ScreenshotMode)
             {
                 if (chunk.Link is PlayerPayload playerPayload)
-                    userContent = Plugin.ChatLog.HidePlayerInString(userContent, playerPayload.PlayerName, playerPayload.World.RowId);
+                    userContent = PlayerUtil.HidePlayerInString(userContent, playerPayload.PlayerName, playerPayload.World.RowId);
                 else if (Plugin.PlayerState.IsLoaded)
-                    userContent = Plugin.ChatLog.HidePlayerInString(userContent, Plugin.PlayerState.CharacterName, Plugin.PlayerState.HomeWorld.RowId);
+                    userContent = PlayerUtil.HidePlayerInString(userContent, Plugin.PlayerState.CharacterName, Plugin.PlayerState.HomeWorld.RowId);
             }
 
             var isNotUrl = text.Link is not UriPayload;

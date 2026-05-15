@@ -24,10 +24,8 @@ public partial class ChatLog : Window, IChatWindow
 {
     private const string ChatChannelPicker = "chat-channel-picker";
 
-    public Plugin Plugin { get; }
-
-    public bool ScreenshotMode;
-    private string Salt { get; }
+    private readonly Plugin Plugin;
+    public readonly InputHandler InputHandler;
 
     public bool TellSpecial;
     private readonly Stopwatch LastResize = new();
@@ -35,17 +33,13 @@ public partial class ChatLog : Window, IChatWindow
     // Used to detect channel changes for the webinterface
     public Chunk[] PreviousChannel = [];
 
-    public unsafe ImGuiViewport* LastViewport;
+    private unsafe ImGuiViewport* LastViewport;
     private bool WasDocked;
-
-    public Lender<PayloadHandler> HandlerLender { get; }
 
     private bool DrewThisFrame;
 
     public bool IsHidden;
-    public HideState CurrentHideState = HideState.None;
-
-    public InputHandler InputHandler;
+    public HideState CurrentHideState { get; set; } = HideState.None;
 
     public Vector2 LastWindowPos { get; set; } = Vector2.Zero;
     public Vector2 LastWindowSize { get; set; } = Vector2.Zero;
@@ -56,8 +50,6 @@ public partial class ChatLog : Window, IChatWindow
     public ChatLog(Plugin plugin) : base($"{Plugin.PluginName}###chat2")
     {
         Plugin = plugin;
-
-        Salt = new Random().Next().ToString();
 
         Size = new Vector2(500, 250);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -70,23 +62,20 @@ public partial class ChatLog : Window, IChatWindow
 
         InputHandler = new InputHandler(this, plugin, "MainChatLog");
 
-        InputHandler.PayloadHandler = new PayloadHandler(this);
-        HandlerLender = new Lender<PayloadHandler>(() => new PayloadHandler(this));
-
         Plugin.Commands.Register("/clearlog2", "Clear the Chat 2 chat log").Execute += ClearLog;
         Plugin.Commands.Register("/chat2").Execute += ToggleChat;
 
         Plugin.ClientState.Login += Login;
         Plugin.ClientState.Logout += Logout;
 
-        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "ItemDetail", InputHandler.PayloadHandler.MoveTooltip);
-        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "ActionDetail", InputHandler.PayloadHandler.MoveTooltip);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "ItemDetail", MoveTooltip);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "ActionDetail", MoveTooltip);
     }
 
     public void Dispose()
     {
-        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostUpdate, "ItemDetail", InputHandler.PayloadHandler.MoveTooltip);
-        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostUpdate, "ActionDetail", InputHandler.PayloadHandler.MoveTooltip);
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostUpdate, "ItemDetail", MoveTooltip);
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostUpdate, "ActionDetail", MoveTooltip);
 
         Plugin.ClientState.Logout -= Logout;
         Plugin.ClientState.Login -= Login;
@@ -406,7 +395,7 @@ public partial class ChatLog : Window, IChatWindow
         var showNovice = Plugin.Config.ShowNoviceNetwork && GameFunctions.GameFunctions.IsMentor();
         var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - ImGui.GetStyle().ItemSpacing.X * buttonsRight;
-        InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial, ref CurrentHideState);
+        InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
 
         ImGui.SameLine();
 
@@ -535,12 +524,12 @@ public partial class ChatLog : Window, IChatWindow
 
             channelNameChunks = [new TextChunk(ChunkSource.None, null, $"{overrideName}{warning}")];
         }
-        else if (ScreenshotMode && activeTab.CurrentChannel.Channel is InputChannel.Tell && activeTab.CurrentChannel.TellTarget != null)
+        else if (PlayerUtil.ScreenshotMode && activeTab.CurrentChannel.Channel is InputChannel.Tell && activeTab.CurrentChannel.TellTarget != null)
         {
             if (!string.IsNullOrWhiteSpace(activeTab.CurrentChannel.TellTarget.Name) && activeTab.CurrentChannel.TellTarget.World != 0)
             {
                 // Note: don't use HidePlayerInString here because abbreviation settings do not affect this.
-                var playerName = HashPlayer(activeTab.CurrentChannel.TellTarget.Name, activeTab.CurrentChannel.TellTarget.World);
+                var playerName = PlayerUtil.HashPlayer(activeTab.CurrentChannel.TellTarget.Name, activeTab.CurrentChannel.TellTarget.World);
                 var world = Sheets.WorldSheet.TryGetRow(activeTab.CurrentChannel.TellTarget.World, out var worldRow)
                     ? worldRow.Name.ToString()
                     : "???";
@@ -572,10 +561,10 @@ public partial class ChatLog : Window, IChatWindow
     private Chunk[] GenerateTellTargetName(TellTarget tellTarget)
     {
         var playerName = tellTarget.Name;
-        if (ScreenshotMode)
+        if (PlayerUtil.ScreenshotMode)
             // Note: don't use HidePlayerInString here because
             // abbreviation settings do not affect this.
-            playerName = HashPlayer(tellTarget.Name, tellTarget.World);
+            playerName = PlayerUtil.HashPlayer(tellTarget.Name, tellTarget.World);
 
         var world = Sheets.WorldSheet.TryGetRow(tellTarget.World, out var worldRow)
             ? worldRow.Name.ToString()
@@ -695,8 +684,8 @@ public partial class ChatLog : Window, IChatWindow
                     if (sameCount > 0)
                     {
                         ImGui.SameLine();
-                        DrawChunks(
-                            [new TextChunk(ChunkSource.None, null, $" ({sameCount + 1}x)") { FallbackColor = ChatType.System, Italic = true, }],
+                        InputHandler.ChunkHandler.DrawChunks(
+                            [new TextChunk(ChunkSource.None, null, $" ({sameCount + 1}x)") { FallbackColor = ChatType.System, Italic = true }],
                             true,
                             handler,
                             ImGui.GetContentRegionAvail().X
@@ -786,7 +775,7 @@ public partial class ChatLog : Window, IChatWindow
                     }
                     else
                     {
-                        DrawChunk(new TextChunk(ChunkSource.None, null, $"[{timestamp}] ") { Foreground = 0xFFFFFFFF, Color = ColourUtil.RgbaToVector4(0xFFFFFFFF)});
+                        InputHandler.ChunkHandler.DrawChunk(new TextChunk(ChunkSource.None, null, $"[{timestamp}] ") { Foreground = 0xFFFFFFFF, Color = ColourUtil.RgbaToVector4(0xFFFFFFFF)});
                         ImGui.SameLine();
                     }
                 }
@@ -797,15 +786,15 @@ public partial class ChatLog : Window, IChatWindow
                 var lineWidth = ImGui.GetContentRegionAvail().X;
                 if (message.Sender.Count > 0)
                 {
-                    DrawChunks(message.Sender, true, handler, lineWidth);
+                    InputHandler.ChunkHandler.DrawChunks(message.Sender, true, handler, lineWidth);
                     ImGui.SameLine();
                 }
 
                 // We need to draw something otherwise the item visibility check below won't work.
                 if (message.Content.Count == 0)
-                    DrawChunks([new TextChunk(ChunkSource.Content, null, " ")], true, handler, lineWidth);
+                    InputHandler.ChunkHandler.DrawChunks([new TextChunk(ChunkSource.Content, null, " ")], true, handler, lineWidth);
                 else
-                    DrawChunks(message.Content, true, handler, lineWidth);
+                    InputHandler.ChunkHandler.DrawChunks(message.Content, true, handler, lineWidth);
 
                 message.IsVisible[tab.Identifier] = ImGui.IsItemVisible();
             }
@@ -971,8 +960,6 @@ public partial class ChatLog : Window, IChatWindow
 
     private void AddPopOutsToDraw()
     {
-        HandlerLender.ResetCounter();
-
         if (PopOutDocked.Count != Plugin.Config.Tabs.Count)
         {
             PopOutDocked.Clear();
@@ -988,23 +975,10 @@ public partial class ChatLog : Window, IChatWindow
             if (PopOutWindows.Contains(tab.Identifier))
                 continue;
 
-            var window = new Popout(this, tab, i);
+            var window = new Popout(Plugin, tab, i);
 
             Plugin.WindowSystem.AddWindow(window);
             PopOutWindows.Add(tab.Identifier);
         }
-    }
-
-    public string HidePlayerInString(string str, string playerName, uint worldId)
-    {
-        var expected = Plugin.Functions.Chat.AbbreviatePlayerName(playerName);
-        var hash = HashPlayer(playerName, worldId);
-        return str.Replace(playerName, expected).Replace(expected, hash);
-    }
-
-    private string HashPlayer(string playerName, uint worldId)
-    {
-        var hashCode = $"{Salt}{playerName}{worldId}".GetHashCode();
-        return $"Player {hashCode:X8}";
     }
 }

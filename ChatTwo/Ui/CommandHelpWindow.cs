@@ -59,6 +59,6 @@ public class CommandHelpWindow : Window {
         if (CommandDescription == null)
             return;
 
-        ChatLogWindow.DrawChunks(ChunkUtil.ToChunks(CommandDescription.Value.ToDalamudString(), ChunkSource.None, null).ToList());
+        ChatLogWindow.InputHandler.ChunkHandler.DrawChunks(ChunkUtil.ToChunks(CommandDescription.Value.ToDalamudString(), ChunkSource.None, null).ToList());
     }
 }

@@ -3,7 +3,6 @@ using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
 using ChatTwo.Resources;
 using ChatTwo.Util;
-using Dalamud.Game.Config;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Hooking;
 using Dalamud.Memory;
@@ -52,17 +51,6 @@ public sealed unsafe class Chat : IDisposable
     private readonly char* LastTypedCharacter = null!;
 
     private Plugin Plugin { get; }
-
-    private enum PlayerNameDisplayType : uint
-    {
-        FullName = 0,
-        SurnameAbbreviated = 1,
-        ForenameAbbreviated = 2,
-        Initials = 3
-    }
-
-    private long LastPlayerNameDisplayTypeRefresh;
-    private PlayerNameDisplayType CurrentPlayerNameDisplayType = PlayerNameDisplayType.FullName;
 
     public Chat(Plugin plugin)
     {
@@ -565,39 +553,7 @@ public sealed unsafe class Chat : IDisposable
         return wasValid;
     }
 
-    private PlayerNameDisplayType GetNameDisplayType()
-    {
-        var ok = Plugin.GameConfig.TryGet(UiConfigOption.LogNameType, out uint type);
-        if (!ok || !Enum.IsDefined(typeof(PlayerNameDisplayType), type))
-            return PlayerNameDisplayType.FullName;
-        return (PlayerNameDisplayType) type;
-    }
-
-    public string AbbreviatePlayerName(string playerName)
-    {
-        if (LastPlayerNameDisplayTypeRefresh + 5_000 < Environment.TickCount64)
-        {
-            LastPlayerNameDisplayTypeRefresh = Environment.TickCount64;
-            CurrentPlayerNameDisplayType = GetNameDisplayType();
-        }
-
-        if (CurrentPlayerNameDisplayType == PlayerNameDisplayType.FullName)
-            return playerName;
-
-        var split = playerName.Split(' ');
-        if (split.Length != 2)
-            return playerName;
-
-        return CurrentPlayerNameDisplayType switch
-        {
-            PlayerNameDisplayType.SurnameAbbreviated => $"{split.First()} {split.Last().FirstOrDefault('A')}.",
-            PlayerNameDisplayType.ForenameAbbreviated => $"{split.First().FirstOrDefault('A')}. {split.Last()}",
-            PlayerNameDisplayType.Initials => $"{split.First().FirstOrDefault('A')}. {split.Last().FirstOrDefault('A')}.",
-            _ => playerName,
-        };
-    }
-
-    public bool CheckHideFlags()
+    public static bool CheckHideFlags()
     {
         // Only hide the chat in a cutscene when the vanilla chat would've
         // also been hidden. This prevents Chat 2 from hiding for a split

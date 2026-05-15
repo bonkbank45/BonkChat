@@ -31,7 +31,7 @@ public partial class InputPreview : Window
 
     public int SelectedCursorPos = -1;
 
-    public InputPreview(InputHandler inputHandler) : base($"##chat2-inputpreview{inputHandler.InputHandlerId}")
+    public InputPreview(InputHandler inputHandler) : base("##chat2-inputpreview")
     {
         Flags = ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove |
                 ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoScrollbar;
@@ -98,7 +98,7 @@ public partial class InputPreview : Window
         {
             PreviewPosition.Top => pos.Y - PreviewHeight,
             PreviewPosition.Bottom => pos.Y + size.Y,
-            _ => throw new ArgumentOutOfRangeException(nameof(Plugin.Config.PreviewPosition), Plugin.Config.PreviewPosition, null)
+            _ => throw new ArgumentOutOfRangeException(nameof(Plugin.Config.PreviewPosition), Plugin.Config.PreviewPosition, null),
         };
 
         Position = pos with { Y = y };
@@ -138,7 +138,6 @@ public partial class InputPreview : Window
             ImGui.TextUnformatted(Language.Options_Preview_Header);
 
             DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler, unique: 10000);
-            InputHandler.PayloadHandler.Draw();
         }
     }
 
@@ -173,7 +172,7 @@ public partial class InputPreview : Window
     {
         if (chunk is IconChunk icon)
         {
-            ChatLog.ChatLog.DrawIcon(chunk, icon, handler);
+            InputHandler.ChunkHandler.DrawIcon(chunk, icon, handler);
             if (icon.Icon != BitmapFontIcon.AutoTranslateBegin)
                 return;
 
@@ -216,7 +215,7 @@ public partial class InputPreview : Window
         if (NextChunkIsAutoTranslate)
         {
             NextChunkIsAutoTranslate = false;
-            ImGuiUtil.WrapText(text.Content, chunk, handler, InputHandler.DefaultText, lineWidth);
+            ImGuiUtil.WrapText(text.Content, chunk, handler, InputHandler.Plugin.DefaultText, lineWidth);
             return;
         }
 
@@ -231,7 +230,7 @@ public partial class InputPreview : Window
             else if (text.Link is UriPayload)
                 CursorPosition += text.Content.Length;
 
-            ImGuiUtil.WrapText(text.Content, chunk, handler, InputHandler.DefaultText, lineWidth);
+            ImGuiUtil.WrapText(text.Content, chunk, handler, InputHandler.Plugin.DefaultText, lineWidth);
             return;
         }
 

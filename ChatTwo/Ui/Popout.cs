@@ -15,28 +15,28 @@ namespace ChatTwo.Ui;
 
 public class Popout : Window, IChatWindow
 {
-    private readonly ChatLog.ChatLog ChatLogWindow;
+    private readonly Plugin Plugin;
     private readonly Tab Tab;
     private readonly int Idx;
-
-    private HideState CurrentHideState = HideState.None;
 
     private long FrameTime; // set every frame
     private long LastActivityTime = Environment.TickCount64;
 
     private readonly string ChatChannelPicker = "chat-popout-channel-picker";
 
-    public InputHandler InputHandler;
+    public readonly InputHandler InputHandler;
+
     public Vector2 LastWindowPos { get; set; } = Vector2.Zero;
     public Vector2 LastWindowSize { get; set; } = Vector2.Zero;
+    public HideState CurrentHideState { get; set; } = HideState.None;
 
-    public Popout(ChatLog.ChatLog chatLogWindow, Tab tab, int idx) : base($"{tab.Name}##popout")
+    public Popout(Plugin plugin, Tab tab, int idx) : base($"{tab.Name}##popout")
     {
-        ChatLogWindow = chatLogWindow;
+        Plugin = plugin;
         Tab = tab;
         Idx = idx;
 
-        InputHandler = new InputHandler(this, chatLogWindow.Plugin, $"ChatLog{idx}-{tab.Name}");
+        InputHandler = new InputHandler(this, plugin, $"ChatLog{idx}-{tab.Name}");
 
         Size = new Vector2(350, 350);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -59,8 +59,8 @@ public class Popout : Window, IChatWindow
         FrameTime = Environment.TickCount64;
 
         var isHidden = Tab.IndependentHide
-            ? ChatLogWindow.HideStateCheck(ref CurrentHideState, Tab.HideInBattle, Tab.HideDuringCutscenes, Tab.HideWhenNotLoggedIn, false)
-            : ChatLogWindow.IsHidden;
+            ? HideStateHelper.HideStateCheck(this, Tab.HideInBattle, Tab.HideDuringCutscenes, Tab.HideWhenNotLoggedIn, false)
+            : Plugin.ChatLog.IsHidden;
 
         if (isHidden)
             return false;
@@ -92,7 +92,7 @@ public class Popout : Window, IChatWindow
         if (!Tab.CanResize)
             Flags |= ImGuiWindowFlags.NoResize;
 
-        if (!ChatLogWindow.PopOutDocked[Idx])
+        if (!Plugin.ChatLog.PopOutDocked[Idx])
         {
             var alpha = Tab.IndependentOpacity ? Tab.Opacity : Plugin.Config.WindowAlpha;
             BgAlpha = alpha / 100f;
@@ -105,8 +105,6 @@ public class Popout : Window, IChatWindow
 
         LastWindowSize = ImGui.GetWindowSize();
         LastWindowPos = ImGui.GetWindowPos();
-        InputHandler.DefaultText = ChatLogWindow.InputHandler.DefaultText;
-        InputHandler.PayloadHandler = ChatLogWindow.HandlerLender.Borrow();
 
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             LastActivityTime = FrameTime;
@@ -118,10 +116,10 @@ public class Popout : Window, IChatWindow
         }
 
         var remainingHeight = Tab.SupportsInput
-            ? ChatLogWindow.GetRemainingHeightForMessageLog(false)
+            ? Plugin.ChatLog.GetRemainingHeightForMessageLog(false)
             : ImGui.GetContentRegionAvail().Y;
 
-        ChatLogWindow.DrawMessageLog(Tab, InputHandler.PayloadHandler, remainingHeight, false);
+        Plugin.ChatLog.DrawMessageLog(Tab, InputHandler.PayloadHandler, remainingHeight, false);
 
         if (!Tab.SupportsInput)
             return;
@@ -131,7 +129,7 @@ public class Popout : Window, IChatWindow
             Tab.CurrentChannel.SetChannel(Tab.Channel.Value);
 
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-            ChatLogWindow.DrawChannelName(Tab, debug: true);
+            Plugin.ChatLog.DrawChannelName(Tab);
 
         if (ImGuiUtil.IconButton(FontAwesomeIcon.Comment) && Tab.Channel is null)
             ImGui.OpenPopup(ChatChannelPicker);
@@ -152,13 +150,12 @@ public class Popout : Window, IChatWindow
         ImGui.SameLine();
 
         var tellSpecial = false;
-        var hideState = HideState.None;
-        InputHandler.DrawInputArea(Tab, ImGui.GetContentRegionAvail().X, ref tellSpecial, ref hideState);
+        InputHandler.DrawInputArea(Tab, ImGui.GetContentRegionAvail().X, ref tellSpecial);
     }
 
     public override void PostDraw()
     {
-        ChatLogWindow.PopOutDocked[Idx] = ImGui.IsWindowDocked();
+        Plugin.ChatLog.PopOutDocked[Idx] = ImGui.IsWindowDocked();
 
         if (Plugin.Config is { OverrideStyle: true, ChosenStyle: not null })
             StyleModel.GetConfiguredStyles()?.FirstOrDefault(style => style.Name == Plugin.Config.ChosenStyle)?.Pop();
@@ -166,11 +163,11 @@ public class Popout : Window, IChatWindow
 
     public override void OnClose()
     {
-        ChatLogWindow.PopOutWindows.Remove(Tab.Identifier);
-        ChatLogWindow.Plugin.WindowSystem.RemoveWindow(this);
+        Plugin.ChatLog.PopOutWindows.Remove(Tab.Identifier);
+        Plugin.WindowSystem.RemoveWindow(this);
 
         Tab.PopOut = false;
-        ChatLogWindow.Plugin.SaveConfig();
+        Plugin.SaveConfig();
     }
 
     private Dictionary<string, InputChannel> GetValidPopupChannels()

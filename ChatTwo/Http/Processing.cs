@@ -70,12 +70,12 @@ public class Processing
             color ??= 0;
 
             var userContent = text.Content;
-            if (HostContext.Core.Plugin.ChatLog.ScreenshotMode)
+            if (PlayerUtil.ScreenshotMode)
             {
                 if (chunk.Link is PlayerPayload playerPayload)
-                    userContent = HostContext.Core.Plugin.ChatLog.HidePlayerInString(userContent, playerPayload.PlayerName, playerPayload.World.RowId);
+                    userContent = PlayerUtil.HidePlayerInString(userContent, playerPayload.PlayerName, playerPayload.World.RowId);
                 else if (Plugin.PlayerState.IsLoaded)
-                    userContent = HostContext.Core.Plugin.ChatLog.HidePlayerInString(userContent, Plugin.PlayerState.CharacterName, Plugin.PlayerState.HomeWorld.RowId);
+                    userContent = PlayerUtil.HidePlayerInString(userContent, Plugin.PlayerState.CharacterName, Plugin.PlayerState.HomeWorld.RowId);
             }
 
             var isNotUrl = text.Link is not UriPayload;
