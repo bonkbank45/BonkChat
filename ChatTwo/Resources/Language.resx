@@ -1475,4 +1475,7 @@ Your old database can still be recovered, please contact the plugin author for h
     <data name="Options_Tab_SetTarget" xml:space="preserve">
         <value>Set to target</value>
     </data>
+    <data name="Options_Tabs_ContentIdWarning" xml:space="preserve">
+        <value>Content ID not set yet, this happens after the first message is received.</value>
+    </data>
 </root>

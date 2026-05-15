@@ -5,6 +5,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Interface.Colors;
 
 namespace ChatTwo.Ui.SettingsTabs;
 
@@ -206,6 +207,9 @@ public sealed class Tabs : ISettingsTab
                             }
                         }
                     }
+
+                    if (tab.TellTarget.ContentId == 0)
+                        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudOrange, Language.Options_Tabs_ContentIdWarning);
 
                     var target = (Plugin.TargetManager.SoftTarget ?? Plugin.TargetManager.Target) as IPlayerCharacter;
                     using (ImRaii.Disabled(target == null))

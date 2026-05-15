@@ -8,6 +8,7 @@ using Dalamud.Configuration;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface.FontIdentifier;
 using Dalamud.Bindings.ImGui;
+using Lumina.Text.ReadOnly;
 
 namespace ChatTwo;
 
@@ -289,9 +290,19 @@ public class Tab
     {
         if (Channel == InputChannel.Tell && TellTarget.IsSet())
         {
+            if (!message.Code.IsPlayerMessage())
+                return false;
+
             if (TellTarget.ContentId == 0)
             {
-                if (message.SenderSource.TextValue == TellTarget.ToTargetString().Replace("@", " "))
+                var target = TellTarget.Empty();
+                foreach (var payload in new ReadOnlySeString(message.SenderSource.Encode()))
+                {
+                    if (target.FromCharacterLink(payload))
+                        break; // Character link found
+                }
+
+                if (target.CompareNames(TellTarget))
                     TellTarget.ContentId = message.ContentId;
             }
 

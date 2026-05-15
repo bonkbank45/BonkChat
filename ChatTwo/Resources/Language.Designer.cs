@@ -3427,6 +3427,15 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Content ID not set yet, this happens after the first message is received..
+        /// </summary>
+        internal static string Options_Tabs_ContentIdWarning {
+            get {
+                return ResourceManager.GetString("Options_Tabs_ContentIdWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Delete.
         /// </summary>
         internal static string Options_Tabs_Delete {
