@@ -192,17 +192,17 @@ public sealed class Tabs : ISettingsTab
                                 var lastDc = worlds.First().DataCenter.RowId;
                                 foreach (var (idx, world) in worlds.Index())
                                 {
+                                    if (lastDc != world.DataCenter.RowId)
+                                    {
+                                        lastDc = world.DataCenter.RowId;
+                                        ImGui.Separator();
+                                    }
+
                                     if (ImGui.Selectable(world.Name.ToString(), selectedWorld == idx))
                                     {
                                         selectedWorld = idx;
                                         tab.TellTarget.World = worlds[selectedWorld].RowId;
                                     }
-
-                                    if (lastDc == world.DataCenter.RowId)
-                                        continue;
-
-                                    lastDc = world.DataCenter.RowId;
-                                    ImGui.Separator();
                                 }
                             }
                         }
