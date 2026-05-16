@@ -111,10 +111,22 @@ public partial class ChatLog : Window, IChatWindow
         }
 
         if (args.AddIfNotPresent != null && !InputHandler.ChatInput.Contains(args.AddIfNotPresent))
-            InputHandler.ChatInput += args.AddIfNotPresent;
+        {
+            // Replace the full chat input if it's a command
+            if (args.AddIfNotPresent.StartsWith('/'))
+                InputHandler.ChatInput = args.AddIfNotPresent;
+            else
+                InputHandler.ChatInput += args.AddIfNotPresent;
+        }
 
         if (args.Input != null)
-            InputHandler.ChatInput += args.Input;
+        {
+            // Replace the full chat input if it's a command
+            if (args.Input.StartsWith('/'))
+                InputHandler.ChatInput = args.Input;
+            else
+                InputHandler.ChatInput += args.Input;
+        }
 
         var (info, reason, target) = (args.ChannelSwitchInfo, args.TellReason, args.TellTarget);
 
