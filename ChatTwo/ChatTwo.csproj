@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
-        <Version>1.40.6</Version>
+        <Version>1.41.0</Version>
         <ImplicitUsings>enable</ImplicitUsings>
         <!-- Distinct internal name so Dalamud doesn't hide this fork as a
              duplicate of the official Chat 2 plugin. -->

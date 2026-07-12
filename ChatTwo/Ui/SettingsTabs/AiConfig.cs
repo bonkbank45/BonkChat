@@ -71,8 +71,14 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
 
         ImGui.TextUnformatted("Grammar correction prompt");
         ImGui.InputTextMultiline("##ai-grammar-prompt", ref Mutable.AiGrammarPrompt, 2000, new System.Numerics.Vector2(-1, 100));
-        if (ImGui.Button("Reset prompt to default"))
+        if (ImGui.Button("Reset##ai-grammar-reset"))
             Mutable.AiGrammarPrompt = Configuration.DefaultGrammarPrompt;
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Translation prompt");
+        ImGui.InputTextMultiline("##ai-translate-prompt", ref Mutable.AiTranslatePrompt, 2000, new System.Numerics.Vector2(-1, 100));
+        if (ImGui.Button("Reset##ai-translate-reset"))
+            Mutable.AiTranslatePrompt = Configuration.DefaultTranslatePrompt;
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -91,8 +97,8 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
                     try
                     {
                         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                        var result = await Plugin.AiManager.CorrectGrammarAsync("how i can goes there?", cts.Token);
-                        WrapperUtil.AddNotification($"AI test succeeded: {result}", NotificationType.Success);
+                        var (corrected, explanations) = await Plugin.AiManager.RunAsync(AiMode.Grammar, "how i can goes there?", cts.Token);
+                        WrapperUtil.AddNotification($"AI test succeeded: {corrected} ({explanations.Count} explanations)", NotificationType.Success);
                     }
                     catch (Exception ex)
                     {

@@ -141,12 +141,29 @@ public class Configuration : IPluginConfiguration
     public string SwuAiUserId = string.Empty;
     public string SwuAiModel = "google/gemini-2.5-flash";
     public string AiGrammarPrompt = DefaultGrammarPrompt;
+    public string AiTranslatePrompt = DefaultTranslatePrompt;
 
-    public const string DefaultGrammarPrompt =
+    // The pre-1.41.0 default, kept so it can be upgraded in place on load.
+    public const string LegacyGrammarPrompt =
         "You are an English grammar assistant for a video game chat. "
         + "Correct the grammar and spelling of the user's message while keeping its meaning, tone and casual style. "
         + "Reply with ONLY the corrected message - no quotes, no explanations, no extra text. "
         + "If the message is already correct, reply with the original message unchanged.";
+
+    public const string DefaultGrammarPrompt =
+        "You are an English teacher helping a Thai player practice English in an online game chat. "
+        + "Correct the grammar and spelling of the user's message while keeping its meaning, tone and casual style. "
+        + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
+        + "{\"corrected\":\"<the corrected message>\",\"explanations\":[\"<short explanation in Thai>\"]} "
+        + "Each explanation is one short Thai sentence about one fix, quoting the relevant English words. "
+        + "If the message is already correct, return it unchanged with an empty explanations array.";
+
+    public const string DefaultTranslatePrompt =
+        "You are an English teacher helping a Thai player chat in an online game. "
+        + "Translate the user's Thai (or mixed Thai-English) message into natural, casual English suitable for game chat. "
+        + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
+        + "{\"corrected\":\"<the English message>\",\"explanations\":[\"<short note in Thai>\"]} "
+        + "Explanations: up to 3 short Thai notes teaching vocabulary or phrasing used in the translation.";
 
     // Webinterface
     public bool WebinterfaceEnabled;
@@ -234,6 +251,7 @@ public class Configuration : IPluginConfiguration
         SwuAiUserId = other.SwuAiUserId;
         SwuAiModel = other.SwuAiModel;
         AiGrammarPrompt = other.AiGrammarPrompt;
+        AiTranslatePrompt = other.AiTranslatePrompt;
         WebinterfaceEnabled = other.WebinterfaceEnabled;
         WebinterfaceAutoStart = other.WebinterfaceAutoStart;
         WebinterfacePassword = other.WebinterfacePassword;

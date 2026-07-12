@@ -1,5 +1,6 @@
 ﻿using ChatTwo.Http;
 using Dalamud.Interface;
+using Dalamud.Interface.FontIdentifier;
 using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility;
@@ -21,6 +22,8 @@ public class FontManager
 
     private ushort[] Ranges = [];
     private ushort[] JpRange = [];
+    // Thai block U+0E00-U+0E7F, terminated per ImGui glyph range convention.
+    private static readonly ushort[] ThaiRange = [0x0E01, 0x0E7F, 0];
 
     public static readonly HashSet<float> AxisFontSizeList =
     [
@@ -126,6 +129,8 @@ public class FontManager
                     config.GlyphRanges = JpRange;
                     Plugin.Config.JapaneseFontV2.FontId.AddToBuildToolkit(tk, config);
 
+                    AddThaiFont(tk, config);
+
                     config.SizePt = Plugin.Config.SymbolsFontSizeV2;
                     tk.AddGameSymbol(config);
 
@@ -156,6 +161,37 @@ public class FontManager
         else
         {
             ItalicFont = null;
+        }
+    }
+
+    /// <summary>
+    /// Merges a Thai-capable system font for the AI learning features (Thai
+    /// explanations and Thai input for translation). The game fonts have no
+    /// Thai glyphs, so without this Thai text renders as boxes.
+    /// </summary>
+    private static void AddThaiFont(IFontAtlasBuildToolkitPreBuild tk, SafeFontConfig config)
+    {
+        if (!Plugin.Config.AiEnabled)
+            return;
+
+        try
+        {
+            var families = IFontFamilyId.ListSystemFonts(false);
+            var family = families.FirstOrDefault(f => f.EnglishName == "Leelawadee UI")
+                         ?? families.FirstOrDefault(f => f.EnglishName == "Tahoma");
+            if (family == null || family.Fonts.Count == 0)
+            {
+                Plugin.Log.Warning("No Thai-capable system font found; Thai text will not render");
+                return;
+            }
+
+            config.SizePt = Plugin.Config.GlobalFontV2.SizePt;
+            config.GlyphRanges = ThaiRange;
+            family.Fonts[0].AddToBuildToolkit(tk, config);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "Failed to add a Thai font, Thai text will not render");
         }
     }
 

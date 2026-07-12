@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
+using ChatTwo.Ai;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions;
 using ChatTwo.GameFunctions.Types;
@@ -10,6 +11,7 @@ using ChatTwo.Util;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Style;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -220,6 +222,8 @@ public partial class ChatLog : Window, IChatWindow
         if (supportsInputPreview && Plugin.Config.PreviewPosition is PreviewPosition.Inside)
             height -= Plugin.InputPreview.PreviewHeight;
 
+        height -= AiPanelHeight;
+
         return height;
     }
 
@@ -368,6 +372,8 @@ public partial class ChatLog : Window, IChatWindow
         if (IsChatMode && Plugin.InputPreview.IsDrawable)
             Plugin.InputPreview.CalculatePreview();
 
+        CalculateAiPanel();
+
         if (Plugin.Config.SidebarTabView)
             DrawTabSidebar();
         else
@@ -381,6 +387,8 @@ public partial class ChatLog : Window, IChatWindow
 
         if (Plugin.Config.PreviewPosition is PreviewPosition.Inside && Plugin.InputPreview.IsDrawable)
             Plugin.InputPreview.DrawPreview();
+
+        DrawAiPanel();
 
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
             DrawChannelName(activeTab);
@@ -406,14 +414,14 @@ public partial class ChatLog : Window, IChatWindow
         var buttonWidth = ImGuiUtil.CalcIconButtonSize().X;
         var showNovice = Plugin.Config.ShowNoviceNetwork && GameFunctions.GameFunctions.IsMentor();
         var showAi = Plugin.Config.AiEnabled;
-        var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0) + (showAi ? 1 : 0);
+        var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0) + (showAi ? 2 : 0);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - ImGui.GetStyle().ItemSpacing.X * buttonsRight;
         InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
 
         if (showAi)
         {
             ImGui.SameLine();
-            DrawAiButton();
+            DrawAiButtons();
         }
 
         ImGui.SameLine();
@@ -440,13 +448,13 @@ public partial class ChatLog : Window, IChatWindow
             GameFunctions.GameFunctions.ClickNoviceNetworkButton();
     }
 
-    private void DrawAiButton()
+    private void DrawAiButtons()
     {
         var busy = Plugin.AiManager.Busy;
         using (ImRaii.Disabled(busy))
         {
             if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.SpellCheck, "ai-correct"))
-                Plugin.AiManager.CorrectInput(InputHandler);
+                Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Grammar);
         }
 
         if (ImGui.IsItemHovered())
@@ -460,6 +468,110 @@ public partial class ChatLog : Window, IChatWindow
 
         if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
             Plugin.AiManager.RevertInput(InputHandler);
+
+        ImGui.SameLine();
+
+        using (ImRaii.Disabled(busy))
+        {
+            if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.Language, "ai-translate"))
+                Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Translate);
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGuiUtil.Tooltip("Translate to English with AI");
+    }
+
+    public float AiPanelHeight { get; private set; }
+    private float AiPanelWrapWidth;
+
+    private void CalculateAiPanel()
+    {
+        AiPanelHeight = 0;
+        if (Plugin.AiManager.Suggestion is not { } suggestion)
+            return;
+
+        // The suggestion is stale once the input was sent or cleared.
+        if (InputHandler.ChatInput.Length == 0)
+        {
+            Plugin.AiManager.DismissSuggestion();
+            return;
+        }
+
+        AiPanelWrapWidth = ImGui.GetContentRegionAvail().X;
+
+        var lineHeight = ImGui.GetTextLineHeight();
+        var spacingY = ImGui.GetStyle().ItemSpacing.Y;
+
+        var height = spacingY + 1 + spacingY; // separator
+        height += lineHeight + spacingY; // header
+        height += CountWordLines(suggestion.Words, AiPanelWrapWidth) * (lineHeight + spacingY);
+        foreach (var explanation in suggestion.Explanations)
+            height += ImGui.CalcTextSize($"- {explanation}", false, AiPanelWrapWidth).Y + spacingY;
+        height += ImGui.GetFrameHeight() + spacingY; // buttons
+
+        AiPanelHeight = height;
+    }
+
+    private static int CountWordLines(List<(string Word, bool Changed)> words, float wrapWidth)
+    {
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+        var lines = 1;
+        var remaining = wrapWidth;
+        foreach (var (word, _) in words)
+        {
+            var width = ImGui.CalcTextSize(word).X;
+            if (remaining < width && remaining < wrapWidth)
+            {
+                lines++;
+                remaining = wrapWidth;
+            }
+
+            remaining -= width + spacing;
+        }
+
+        return lines;
+    }
+
+    private void DrawAiPanel()
+    {
+        if (AiPanelHeight <= 0 || Plugin.AiManager.Suggestion is not { } suggestion)
+            return;
+
+        ImGui.Separator();
+
+        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudViolet, suggestion.Mode == AiMode.Grammar ? "AI grammar suggestion:" : "AI translation:");
+
+        // The suggested text, changed words highlighted, wrapped manually with
+        // the same accounting as CountWordLines.
+        var spacingX = ImGui.GetStyle().ItemSpacing.X;
+        var remaining = AiPanelWrapWidth;
+        foreach (var (word, changed) in suggestion.Words)
+        {
+            var width = ImGui.CalcTextSize(word).X;
+            if (remaining < width && remaining < AiPanelWrapWidth)
+            {
+                ImGui.NewLine();
+                remaining = AiPanelWrapWidth;
+            }
+
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, changed))
+                ImGui.TextUnformatted(word);
+            ImGui.SameLine();
+
+            remaining -= width + spacingX;
+        }
+        ImGui.NewLine();
+
+        foreach (var explanation in suggestion.Explanations)
+            ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, $"- {explanation}");
+
+        if (ImGui.Button("Apply##ai-apply"))
+            Plugin.AiManager.ApplySuggestion(InputHandler);
+
+        ImGui.SameLine();
+
+        if (ImGui.Button("Dismiss##ai-dismiss"))
+            Plugin.AiManager.DismissSuggestion();
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()

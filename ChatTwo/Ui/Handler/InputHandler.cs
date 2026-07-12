@@ -221,8 +221,15 @@ public class InputHandler
         }
 
         if (data.EventFlag == ImGuiInputTextFlags.CallbackCharFilter)
-            if (!Plugin.Functions.Chat.IsCharValid((char) data.EventChar))
+        {
+            var eventChar = (char) data.EventChar;
+            // The game charset has no Thai, but the AI translate feature needs
+            // Thai to be typable; the text is translated to English before
+            // being sent.
+            var isThaiForAi = Plugin.Config.AiEnabled && eventChar >= '฀' && eventChar <= '๿';
+            if (!isThaiForAi && !Plugin.Functions.Chat.IsCharValid(eventChar))
                 return 1;
+        }
 
         if (Activate)
         {

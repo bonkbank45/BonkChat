@@ -123,6 +123,14 @@ public sealed class Plugin : IDalamudPlugin
             if (Config.Tabs.Count == 0)
                 Config.Tabs.Add(TabsUtil.VanillaGeneral);
 
+            // Upgrade the plain-text grammar prompt of 1.40.x to the JSON one
+            // that learning mode needs, unless the user customized it.
+            if (Config.AiGrammarPrompt == Configuration.LegacyGrammarPrompt)
+            {
+                Config.AiGrammarPrompt = Configuration.DefaultGrammarPrompt;
+                SaveConfig();
+            }
+
             LanguageChanged(Interface.UiLanguage);
             ImGuiUtil.Initialize(this);
 

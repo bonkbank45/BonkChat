@@ -22,33 +22,14 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
-  **New Feature Added~**
-  - A web interface has been added
-  - *This will not function if your game client is offline or you are logged out of the game*
+  **BonkChat 1.41.0 - AI Learning Update**
+  - Grammar corrections now open a suggestion panel above the input box
+  - Changed words are highlighted, with short explanations in Thai
+  - New translate button: type Thai, get natural English for game chat
+  - Thai text rendering and Thai typing in the chat input
+  - Configurable prompts for both modes in the AI settings tab
 
-  **Main Features**
-  - View in-game chat on any device that has a web browser functionality
-  - Can send chat messages through the web interface directly into the game itself
-  - Easily copy & paste messages
-  - Option for automatic starting the web interface feature
-  - Log lines render limit for faster loading performance [Default 1000]
-
-  **Security**
-  - This feature is not intended to be used outside of your local, private network
-  - Do not forward ports that are described inside the chat2 options panel
-  - Never share your authentication code under any circumstances
-  - Multi-box support is not provided, the web interface will track only the first client
-
-  **Additional Features soon to be Added**
-  - Display errors as small notifications inside the web interface
-
-  **Planned Features**
-  - Multiple Tabs support
-  - Browser specific settings
-  - Stylization support
-
-  **Additional Permissions Note**
-  - Users that wish to expand this to apps or other platforms are welcome to do so
-
-  *Note: An FAQ will be provided in the chat2 thread on the dalamud discord, linked in the About section*
-
+  **1.40.x**
+  - AI portal supporting ChatGPT (OpenAI), Gemini and SWU AI
+  - AI grammar correction button next to the chat input
+  - Based on Chat 2 by Infi & Anna
