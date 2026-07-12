@@ -222,7 +222,10 @@ public partial class ChatLog : Window, IChatWindow
         if (supportsInputPreview && Plugin.Config.PreviewPosition is PreviewPosition.Inside)
             height -= Plugin.InputPreview.PreviewHeight;
 
-        height -= AiPanelHeight;
+        // The AI suggestion panel only exists in the main chat window, which
+        // is also the only caller that supports the input preview.
+        if (supportsInputPreview)
+            height -= AiPanelHeight;
 
         return height;
     }
@@ -354,12 +357,16 @@ public partial class ChatLog : Window, IChatWindow
 
     private static bool IsChatMode => Plugin.Config.PreviewPosition is PreviewPosition.Inside or PreviewPosition.Tooltip;
 
-    public static void DrawBackgroundImage()
+    public static void DrawBackgroundImage(Tab? tab)
     {
-        if (string.IsNullOrWhiteSpace(Plugin.Config.BackgroundImagePath))
+        // A tab-specific image wins over the global one.
+        var path = tab is not null && !string.IsNullOrWhiteSpace(tab.BackgroundImagePath)
+            ? tab.BackgroundImagePath
+            : Plugin.Config.BackgroundImagePath;
+        if (string.IsNullOrWhiteSpace(path))
             return;
 
-        var texture = Plugin.TextureProvider.GetFromFile(Plugin.Config.BackgroundImagePath).GetWrapOrDefault();
+        var texture = Plugin.TextureProvider.GetFromFile(path).GetWrapOrDefault();
         if (texture == null)
             return;
 
@@ -397,7 +404,7 @@ public partial class ChatLog : Window, IChatWindow
         // Position change has applied, so we set it to null again
         Position = null;
 
-        DrawBackgroundImage();
+        DrawBackgroundImage(Plugin.CurrentTab);
 
         var currentSize = ImGui.GetWindowSize();
         var resized = LastWindowSize != currentSize;

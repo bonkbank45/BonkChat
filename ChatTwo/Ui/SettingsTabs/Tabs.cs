@@ -90,6 +90,28 @@ public sealed class Tabs : ISettingsTab
 
             ImGui.InputText(Language.Options_Tabs_Name, ref tab.Name, 512, ImGuiInputTextFlags.EnterReturnsTrue);
             ImGui.Checkbox(Language.Options_Tabs_ShowTimestamps, ref tab.DisplayTimestamp);
+
+            if (ImGui.Button($"Background image...##tab-bg-{i}"))
+            {
+                Plugin.FileDialogManager.OpenFileDialog("Choose a background image for this tab", "Images{.png,.jpg,.jpeg,.bmp,.gif,.webp}", (success, path) =>
+                {
+                    if (success)
+                        tab.BackgroundImagePath = path;
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(tab.BackgroundImagePath))
+            {
+                ImGui.SameLine();
+                if (ImGui.Button($"Clear##tab-bg-clear-{i}"))
+                    tab.BackgroundImagePath = string.Empty;
+
+                ImGuiUtil.HelpText(tab.BackgroundImagePath);
+            }
+            else
+            {
+                ImGuiUtil.HelpText("No tab image set; the global background image from Display settings is used.");
+            }
             ImGui.Checkbox(Language.Options_Tabs_PopOut, ref tab.PopOut);
             if (tab.PopOut)
             {

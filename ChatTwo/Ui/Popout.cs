@@ -103,6 +103,8 @@ public class Popout : Window, IChatWindow
     {
         using var id = ImRaii.PushId($"popout-{Tab.Identifier}");
 
+        ChatLog.ChatLog.DrawBackgroundImage(Tab);
+
         LastWindowSize = ImGui.GetWindowSize();
         LastWindowPos = ImGui.GetWindowPos();
 

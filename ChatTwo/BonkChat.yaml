@@ -22,6 +22,12 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.42.1**
+  - Per-tab background images (set in Settings -> Tabs; falls back to
+    the global image when a tab has none)
+  - Pop-out tab windows now draw their tab's background image
+  - Fixed pop-out height being reduced while the AI panel was open
+
   **BonkChat 1.42.0**
   - Right click any message -> "AI: Translate to Thai" with slang/vocab notes
   - Custom background image for the chat window (Display settings):

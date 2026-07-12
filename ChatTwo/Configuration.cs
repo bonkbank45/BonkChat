@@ -340,6 +340,9 @@ public class Tab
     public bool InputDisabled;
     public bool SupportsInput;
 
+    /// <summary> Per-tab background image; empty falls back to the global one. </summary>
+    public string BackgroundImagePath = string.Empty;
+
     public bool CanMove = true;
     public bool CanResize = true;
 
@@ -437,6 +440,7 @@ public class Tab
             IsTempTab = IsTempTab,
             AllSenderMessages = AllSenderMessages,
             TellTarget = TellTarget.Clone(),
+            BackgroundImagePath = BackgroundImagePath,
         };
     }
 
