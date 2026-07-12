@@ -91,6 +91,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             GameStarted = Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
+            MigrateFromOfficialChatTwo();
+
             Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
 
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -257,6 +259,51 @@ public sealed class Plugin : IDalamudPlugin
     public void SaveConfig()
     {
         Interface.SavePluginConfig(Config);
+    }
+
+    /// <summary>
+    /// One-time migration of the official Chat 2 plugin's configuration and
+    /// data (message database, fonts) into this fork's own config paths,
+    /// which differ because the internal name changed to BonkChat. The old
+    /// files are copied, never modified, so the official plugin keeps working.
+    /// </summary>
+    private static void MigrateFromOfficialChatTwo()
+    {
+        try
+        {
+            var configFile = Interface.ConfigFile; // .../pluginConfigs/BonkChat.json
+            var oldConfigFile = new FileInfo(Path.Join(configFile.DirectoryName, "ChatTwo.json"));
+            if (!configFile.Exists && oldConfigFile.Exists)
+            {
+                // The config embeds assembly-qualified type names like
+                // "ChatTwo.Configuration, ChatTwo", so the assembly token has
+                // to be rewritten for deserialization to find our types.
+                var text = File.ReadAllText(oldConfigFile.FullName);
+                text = System.Text.RegularExpressions.Regex.Replace(text, @", ChatTwo(?=[\]""])", ", BonkChat");
+                File.WriteAllText(configFile.FullName, text);
+                Log.Information("Migrated configuration from the official Chat 2 plugin");
+            }
+
+            var configDir = Interface.ConfigDirectory; // .../pluginConfigs/BonkChat/
+            configDir.Create();
+            var oldConfigDir = new DirectoryInfo(Path.Join(configDir.Parent!.FullName, "ChatTwo"));
+            if (!oldConfigDir.Exists)
+                return;
+
+            foreach (var file in oldConfigDir.GetFiles())
+            {
+                var target = Path.Join(configDir.FullName, file.Name);
+                if (!File.Exists(target))
+                {
+                    file.CopyTo(target);
+                    Log.Information($"Migrated {file.Name} from the official Chat 2 plugin");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to migrate data from the official Chat 2 plugin");
+        }
     }
 
     public void LanguageChanged(string langCode)
