@@ -8,9 +8,14 @@ namespace ChatTwo.Ai;
 /// The AI portal: dispatches requests to the configured provider and drives
 /// the grammar correction feature of the chat input.
 /// </summary>
-public class AiManager
+public class AiManager : IDisposable
 {
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
+    public void Dispose()
+    {
+        AiUtil.HttpClient.Dispose();
+    }
 
     private readonly OpenAiProvider OpenAi = new();
     private readonly GeminiProvider Gemini = new();

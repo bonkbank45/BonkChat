@@ -225,6 +225,7 @@ public sealed class Plugin : IDalamudPlugin
         Ipc?.Dispose();
         MessageManager?.DisposeAsync().AsTask().Wait();
         Functions?.Dispose();
+        AiManager?.Dispose();
         Commands?.Dispose();
 
         EmoteCache.Dispose();

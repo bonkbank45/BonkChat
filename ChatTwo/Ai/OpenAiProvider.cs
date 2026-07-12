@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ChatTwo.Http;
 
 namespace ChatTwo.Ai;
 
@@ -31,7 +30,7 @@ public class OpenAiProvider : IAiProvider
         request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
-        using var response = await ServerCore.HttpClient.SendAsync(request, token);
+        using var response = await AiUtil.HttpClient.SendAsync(request, token);
         var raw = await response.Content.ReadAsStringAsync(token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"OpenAI returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");
@@ -54,7 +53,7 @@ public class OpenAiProvider : IAiProvider
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
 
-        using var response = await ServerCore.HttpClient.SendAsync(request, token);
+        using var response = await AiUtil.HttpClient.SendAsync(request, token);
         var raw = await response.Content.ReadAsStringAsync(token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"OpenAI returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");

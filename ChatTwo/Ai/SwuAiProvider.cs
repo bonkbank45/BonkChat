@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ChatTwo.Http;
 
 namespace ChatTwo.Ai;
 
@@ -80,7 +79,7 @@ public class SwuAiProvider : IAiProvider
         request.Headers.TryAddWithoutValidation("Accept", "application/json");
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
-        using var response = await ServerCore.HttpClient.SendAsync(request, token);
+        using var response = await AiUtil.HttpClient.SendAsync(request, token);
         var raw = await response.Content.ReadAsStringAsync(token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"SWU AI returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");
