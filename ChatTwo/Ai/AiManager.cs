@@ -47,7 +47,12 @@ public class AiManager : IDisposable
     /// </summary>
     public async Task<(string Corrected, List<string> Explanations)> RunAsync(AiMode mode, string text, CancellationToken token)
     {
-        var prompt = mode == AiMode.Grammar ? Plugin.Config.AiGrammarPrompt : Plugin.Config.AiTranslatePrompt;
+        var prompt = mode switch
+        {
+            AiMode.Grammar => Plugin.Config.AiGrammarPrompt,
+            AiMode.Translate => Plugin.Config.AiTranslatePrompt,
+            _ => Plugin.Config.AiExplainPrompt,
+        };
         var reply = await CurrentProvider.ChatAsync(prompt, text, token);
         var (corrected, explanations) = ParseStructuredReply(reply);
 
@@ -120,6 +125,50 @@ public class AiManager : IDisposable
             catch (Exception ex)
             {
                 Plugin.Log.Error(ex, "AI request failed");
+                WrapperUtil.AddNotification($"AI request failed: {ex.Message}", NotificationType.Error);
+            }
+            finally
+            {
+                Busy = false;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Translates a received message into Thai and shows it in the panel.
+    /// Nothing gets applied to the input; the panel is informational only.
+    /// </summary>
+    public void RequestExplanation(string messageText)
+    {
+        if (!Plugin.Config.AiEnabled || Busy || string.IsNullOrWhiteSpace(messageText))
+            return;
+
+        Busy = true;
+        Task.Run(async () =>
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(RequestTimeout);
+                var (translated, explanations) = await RunAsync(AiMode.Explain, messageText, cts.Token);
+
+                var suggestion = new AiSuggestion
+                {
+                    Mode = AiMode.Explain,
+                    OriginalInput = messageText,
+                    Prefix = string.Empty,
+                    Corrected = translated,
+                    Explanations = explanations,
+                };
+
+                await Plugin.Framework.RunOnFrameworkThread(() => Suggestion = suggestion);
+            }
+            catch (OperationCanceledException)
+            {
+                WrapperUtil.AddNotification("AI request timed out", NotificationType.Error);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error(ex, "AI explanation failed");
                 WrapperUtil.AddNotification($"AI request failed: {ex.Message}", NotificationType.Error);
             }
             finally

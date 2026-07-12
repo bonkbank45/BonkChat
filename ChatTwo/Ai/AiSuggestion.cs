@@ -4,6 +4,8 @@ public enum AiMode
 {
     Grammar,
     Translate,
+    /// <summary> Translate a received message into Thai for the reader. </summary>
+    Explain,
 }
 
 /// <summary>

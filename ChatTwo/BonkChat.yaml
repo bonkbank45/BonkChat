@@ -22,6 +22,11 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.42.0**
+  - Right click any message -> "AI: Translate to Thai" with slang/vocab notes
+  - Custom background image for the chat window (Display settings):
+    choose any image, adjust opacity, stretch or cover fit
+
   **BonkChat 1.41.1**
   - Keybinds for the AI features, configurable in the AI settings tab
   - Default: Ctrl+G corrects grammar, Ctrl+T translates to English

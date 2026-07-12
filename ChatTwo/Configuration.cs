@@ -142,6 +142,7 @@ public class Configuration : IPluginConfiguration
     public string SwuAiModel = "google/gemini-2.5-flash";
     public string AiGrammarPrompt = DefaultGrammarPrompt;
     public string AiTranslatePrompt = DefaultTranslatePrompt;
+    public string AiExplainPrompt = DefaultExplainPrompt;
     public ConfigKeyBind? AiGrammarKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.G };
     public ConfigKeyBind? AiTranslateKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.T };
 
@@ -160,12 +161,24 @@ public class Configuration : IPluginConfiguration
         + "Each explanation is one short Thai sentence about one fix, quoting the relevant English words. "
         + "If the message is already correct, return it unchanged with an empty explanations array.";
 
+    public const string DefaultExplainPrompt =
+        "You are an English teacher helping a Thai player understand English messages in an online game. "
+        + "Translate the message into natural Thai. "
+        + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
+        + "{\"corrected\":\"<Thai translation>\",\"explanations\":[\"<short Thai note>\"]} "
+        + "Explanations: up to 3 short Thai notes explaining slang, gaming abbreviations or useful vocabulary from the message.";
+
     public const string DefaultTranslatePrompt =
         "You are an English teacher helping a Thai player chat in an online game. "
         + "Translate the user's Thai (or mixed Thai-English) message into natural, casual English suitable for game chat. "
         + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
         + "{\"corrected\":\"<the English message>\",\"explanations\":[\"<short note in Thai>\"]} "
         + "Explanations: up to 3 short Thai notes teaching vocabulary or phrasing used in the translation.";
+
+    // Background image
+    public string BackgroundImagePath = string.Empty;
+    public float BackgroundImageOpacity = 50f; // percent
+    public BackgroundImageFit BackgroundImageFitMode = BackgroundImageFit.Cover;
 
     // Webinterface
     public bool WebinterfaceEnabled;
@@ -254,8 +267,12 @@ public class Configuration : IPluginConfiguration
         SwuAiModel = other.SwuAiModel;
         AiGrammarPrompt = other.AiGrammarPrompt;
         AiTranslatePrompt = other.AiTranslatePrompt;
+        AiExplainPrompt = other.AiExplainPrompt;
         AiGrammarKeybind = other.AiGrammarKeybind;
         AiTranslateKeybind = other.AiTranslateKeybind;
+        BackgroundImagePath = other.BackgroundImagePath;
+        BackgroundImageOpacity = other.BackgroundImageOpacity;
+        BackgroundImageFitMode = other.BackgroundImageFitMode;
         WebinterfaceEnabled = other.WebinterfaceEnabled;
         WebinterfaceAutoStart = other.WebinterfaceAutoStart;
         WebinterfacePassword = other.WebinterfacePassword;
@@ -263,6 +280,15 @@ public class Configuration : IPluginConfiguration
         WebinterfaceMaxLinesToSend = other.WebinterfaceMaxLinesToSend;
         MigrationStatus = other.MigrationStatus;
     }
+}
+
+[Serializable]
+public enum BackgroundImageFit
+{
+    /// <summary> Stretch to the window, ignoring aspect ratio. </summary>
+    Stretch,
+    /// <summary> Fill the window, cropping the overflowing sides. </summary>
+    Cover,
 }
 
 [Serializable]

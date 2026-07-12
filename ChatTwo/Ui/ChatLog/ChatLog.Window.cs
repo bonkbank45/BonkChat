@@ -353,10 +353,51 @@ public partial class ChatLog : Window, IChatWindow
     }
 
     private static bool IsChatMode => Plugin.Config.PreviewPosition is PreviewPosition.Inside or PreviewPosition.Tooltip;
+
+    public static void DrawBackgroundImage()
+    {
+        if (string.IsNullOrWhiteSpace(Plugin.Config.BackgroundImagePath))
+            return;
+
+        var texture = Plugin.TextureProvider.GetFromFile(Plugin.Config.BackgroundImagePath).GetWrapOrDefault();
+        if (texture == null)
+            return;
+
+        var pos = ImGui.GetWindowPos();
+        var size = ImGui.GetWindowSize();
+
+        var uv0 = Vector2.Zero;
+        var uv1 = Vector2.One;
+        if (Plugin.Config.BackgroundImageFitMode == BackgroundImageFit.Cover && size.Y > 0 && texture.Height > 0)
+        {
+            // Crop the image to the window's aspect ratio instead of
+            // stretching it.
+            var imageAspect = (float) texture.Width / texture.Height;
+            var windowAspect = size.X / size.Y;
+            if (imageAspect > windowAspect)
+            {
+                var visible = windowAspect / imageAspect;
+                uv0.X = (1 - visible) / 2;
+                uv1.X = 1 - uv0.X;
+            }
+            else if (imageAspect < windowAspect)
+            {
+                var visible = imageAspect / windowAspect;
+                uv0.Y = (1 - visible) / 2;
+                uv1.Y = 1 - uv0.Y;
+            }
+        }
+
+        var alpha = (uint) (Math.Clamp(Plugin.Config.BackgroundImageOpacity / 100f, 0f, 1f) * 255);
+        ImGui.GetWindowDrawList().AddImage(texture.Handle, pos, pos + size, uv0, uv1, alpha << 24 | 0xFFFFFF);
+    }
+
     private unsafe void DrawChatLog()
     {
         // Position change has applied, so we set it to null again
         Position = null;
+
+        DrawBackgroundImage();
 
         var currentSize = ImGui.GetWindowSize();
         var resized = LastWindowSize != currentSize;
@@ -490,8 +531,9 @@ public partial class ChatLog : Window, IChatWindow
         if (Plugin.AiManager.Suggestion is not { } suggestion)
             return;
 
-        // The suggestion is stale once the input was sent or cleared.
-        if (InputHandler.ChatInput.Length == 0)
+        // The suggestion is stale once the input was sent or cleared, except
+        // for explanations of received messages, which don't touch the input.
+        if (suggestion.Mode != AiMode.Explain && InputHandler.ChatInput.Length == 0)
         {
             Plugin.AiManager.DismissSuggestion();
             return;
@@ -504,7 +546,9 @@ public partial class ChatLog : Window, IChatWindow
 
         var height = spacingY + 1 + spacingY; // separator
         height += lineHeight + spacingY; // header
-        height += CountWordLines(suggestion.Words, AiPanelWrapWidth) * (lineHeight + spacingY);
+        height += suggestion.Mode == AiMode.Explain
+            ? ImGui.CalcTextSize(suggestion.Corrected, false, AiPanelWrapWidth).Y + spacingY
+            : CountWordLines(suggestion.Words, AiPanelWrapWidth) * (lineHeight + spacingY);
         foreach (var explanation in suggestion.Explanations)
             height += ImGui.CalcTextSize($"- {explanation}", false, AiPanelWrapWidth).Y + spacingY;
         height += ImGui.GetFrameHeight() + spacingY; // buttons
@@ -539,36 +583,53 @@ public partial class ChatLog : Window, IChatWindow
 
         ImGui.Separator();
 
-        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudViolet, suggestion.Mode == AiMode.Grammar ? "AI grammar suggestion:" : "AI translation:");
-
-        // The suggested text, changed words highlighted, wrapped manually with
-        // the same accounting as CountWordLines.
-        var spacingX = ImGui.GetStyle().ItemSpacing.X;
-        var remaining = AiPanelWrapWidth;
-        foreach (var (word, changed) in suggestion.Words)
+        var header = suggestion.Mode switch
         {
-            var width = ImGui.CalcTextSize(word).X;
-            if (remaining < width && remaining < AiPanelWrapWidth)
-            {
-                ImGui.NewLine();
-                remaining = AiPanelWrapWidth;
-            }
+            AiMode.Grammar => "AI grammar suggestion:",
+            AiMode.Translate => "AI translation:",
+            _ => "AI translation to Thai:",
+        };
+        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudViolet, header);
 
-            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, changed))
-                ImGui.TextUnformatted(word);
-            ImGui.SameLine();
-
-            remaining -= width + spacingX;
+        if (suggestion.Mode == AiMode.Explain)
+        {
+            // Thai text has no spaces, so word-based rendering doesn't apply.
+            ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudWhite, suggestion.Corrected);
         }
-        ImGui.NewLine();
+        else
+        {
+            // The suggested text, changed words highlighted, wrapped manually
+            // with the same accounting as CountWordLines.
+            var spacingX = ImGui.GetStyle().ItemSpacing.X;
+            var remaining = AiPanelWrapWidth;
+            foreach (var (word, changed) in suggestion.Words)
+            {
+                var width = ImGui.CalcTextSize(word).X;
+                if (remaining < width && remaining < AiPanelWrapWidth)
+                {
+                    ImGui.NewLine();
+                    remaining = AiPanelWrapWidth;
+                }
+
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, changed))
+                    ImGui.TextUnformatted(word);
+                ImGui.SameLine();
+
+                remaining -= width + spacingX;
+            }
+            ImGui.NewLine();
+        }
 
         foreach (var explanation in suggestion.Explanations)
             ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, $"- {explanation}");
 
-        if (ImGui.Button("Apply##ai-apply"))
-            Plugin.AiManager.ApplySuggestion(InputHandler);
+        if (suggestion.Mode != AiMode.Explain)
+        {
+            if (ImGui.Button("Apply##ai-apply"))
+                Plugin.AiManager.ApplySuggestion(InputHandler);
 
-        ImGui.SameLine();
+            ImGui.SameLine();
+        }
 
         if (ImGui.Button("Dismiss##ai-dismiss"))
             Plugin.AiManager.DismissSuggestion();

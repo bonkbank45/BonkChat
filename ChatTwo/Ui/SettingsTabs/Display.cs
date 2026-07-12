@@ -112,5 +112,42 @@ public sealed class Display : ISettingsTab
             ImGuiUtil.OptionCheckbox(ref Mutable.CollapseKeepUniqueLinks, Language.Options_CollapseDuplicateMsgUniqueLink_Name, Language.Options_CollapseDuplicateMsgUniqueLink_Description);
         }
         ImGui.Spacing();
+
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("Background image");
+        ImGuiUtil.HelpText("Shows an image behind the chat window. Press Save to apply.");
+        ImGui.Spacing();
+
+        if (ImGui.Button("Choose image..."))
+        {
+            Plugin.FileDialogManager.OpenFileDialog("Choose a background image", "Images{.png,.jpg,.jpeg,.bmp,.gif,.webp}", (success, path) =>
+            {
+                if (success)
+                    Mutable.BackgroundImagePath = path;
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(Mutable.BackgroundImagePath))
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Clear"))
+                Mutable.BackgroundImagePath = string.Empty;
+
+            ImGui.TextUnformatted(Mutable.BackgroundImagePath);
+            ImGui.Spacing();
+
+            if (ImGuiUtil.DragFloatVertical("Image opacity", ref Mutable.BackgroundImageOpacity, 1f, 0f, 100f, "%.0f%%"))
+                Mutable.BackgroundImageOpacity = Math.Clamp(Mutable.BackgroundImageOpacity, 0f, 100f);
+            ImGui.Spacing();
+
+            using var combo = ImGuiUtil.BeginComboVertical("Image fit", Mutable.BackgroundImageFitMode.ToString());
+            if (combo)
+                foreach (var fit in Enum.GetValues<BackgroundImageFit>())
+                    if (ImGui.Selectable(fit.ToString(), fit == Mutable.BackgroundImageFitMode))
+                        Mutable.BackgroundImageFitMode = fit;
+        }
+        ImGui.Spacing();
     }
 }

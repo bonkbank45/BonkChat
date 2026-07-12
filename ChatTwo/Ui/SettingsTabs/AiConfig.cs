@@ -96,6 +96,12 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
             Mutable.AiTranslatePrompt = Configuration.DefaultTranslatePrompt;
 
         ImGui.Spacing();
+        ImGui.TextUnformatted("Message explanation prompt (right click a message)");
+        ImGui.InputTextMultiline("##ai-explain-prompt", ref Mutable.AiExplainPrompt, 2000, new System.Numerics.Vector2(-1, 100));
+        if (ImGui.Button("Reset##ai-explain-reset"))
+            Mutable.AiExplainPrompt = Configuration.DefaultExplainPrompt;
+
+        ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 

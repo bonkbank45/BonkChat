@@ -171,6 +171,9 @@ public sealed class PayloadHandler
                 WrapperUtil.AddNotification(Language.Context_CopyContentSuccess, NotificationType.Info);
             }
 
+            if (Plugin.Config.AiEnabled && ImGui.Selectable("AI: Translate to Thai"))
+                InputHandler.Plugin.AiManager.RequestExplanation(StringifyMessage(message));
+
             using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int) ImGuiCol.TextDisabled]);
             ImGui.TextUnformatted(message.Code.Type.Name());
         }
