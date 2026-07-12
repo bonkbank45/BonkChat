@@ -102,6 +102,12 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
             Mutable.AiExplainPrompt = Configuration.DefaultExplainPrompt;
 
         ImGui.Spacing();
+        ImGui.TextUnformatted("Rewrite prompt ({style} is replaced by the chosen tone)");
+        ImGui.InputTextMultiline("##ai-rewrite-prompt", ref Mutable.AiRewritePrompt, 2000, new System.Numerics.Vector2(-1, 100));
+        if (ImGui.Button("Reset##ai-rewrite-reset"))
+            Mutable.AiRewritePrompt = Configuration.DefaultRewritePrompt;
+
+        ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 

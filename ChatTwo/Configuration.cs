@@ -144,6 +144,7 @@ public class Configuration : IPluginConfiguration
     public string AiGrammarPrompt = DefaultGrammarPrompt;
     public string AiTranslatePrompt = DefaultTranslatePrompt;
     public string AiExplainPrompt = DefaultExplainPrompt;
+    public string AiRewritePrompt = DefaultRewritePrompt;
     public ConfigKeyBind? AiGrammarKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.G };
     public ConfigKeyBind? AiTranslateKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.T };
 
@@ -161,6 +162,13 @@ public class Configuration : IPluginConfiguration
         + "{\"corrected\":\"<the corrected message>\",\"explanations\":[\"<short explanation in Thai>\"]} "
         + "Each explanation is one short Thai sentence about one fix, quoting the relevant English words. "
         + "If the message is already correct, return it unchanged with an empty explanations array.";
+
+    public const string DefaultRewritePrompt =
+        "You are an English teacher helping a Thai player chat in an online game. {style} "
+        + "If the message is in Thai, translate it into English with that tone. "
+        + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
+        + "{\"corrected\":\"<the rewritten message>\",\"explanations\":[\"<short explanation in Thai>\"]} "
+        + "Each explanation is one short Thai sentence about why the new phrasing fits the tone, quoting the relevant English words.";
 
     public const string DefaultExplainPrompt =
         "You are an English teacher helping a Thai player understand English messages in an online game. "
@@ -271,6 +279,7 @@ public class Configuration : IPluginConfiguration
         AiGrammarPrompt = other.AiGrammarPrompt;
         AiTranslatePrompt = other.AiTranslatePrompt;
         AiExplainPrompt = other.AiExplainPrompt;
+        AiRewritePrompt = other.AiRewritePrompt;
         AiGrammarKeybind = other.AiGrammarKeybind;
         AiTranslateKeybind = other.AiTranslateKeybind;
         BackgroundImagePath = other.BackgroundImagePath;

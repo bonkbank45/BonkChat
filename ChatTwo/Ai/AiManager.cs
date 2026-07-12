@@ -125,12 +125,13 @@ public class AiManager : IDisposable
     /// into the corrected/translated message and its Thai explanations.
     /// Successful results are served from an LRU cache when repeated.
     /// </summary>
-    public async Task<(string Corrected, List<string> Explanations)> RunAsync(AiMode mode, string text, CancellationToken token)
+    public async Task<(string Corrected, List<string> Explanations)> RunAsync(AiMode mode, string text, CancellationToken token, RewriteStyle? style = null)
     {
         var prompt = mode switch
         {
             AiMode.Grammar => Plugin.Config.AiGrammarPrompt,
             AiMode.Translate => Plugin.Config.AiTranslatePrompt,
+            AiMode.Rewrite => Plugin.Config.AiRewritePrompt.Replace("{style}", (style ?? RewriteStyle.Politer).Instruction()),
             _ => Plugin.Config.AiExplainPrompt,
         };
 
@@ -154,7 +155,7 @@ public class AiManager : IDisposable
     /// shows it in the suggestion panel. Commands keep their "/command "
     /// prefix untouched.
     /// </summary>
-    public void RequestSuggestion(InputHandler handler, AiMode mode)
+    public void RequestSuggestion(InputHandler handler, AiMode mode, RewriteStyle? style = null)
     {
         // Also guards the keybinds, which are checked regardless of AI state.
         if (!Plugin.Config.AiEnabled || Busy)
@@ -177,23 +178,42 @@ public class AiManager : IDisposable
         if (string.IsNullOrWhiteSpace(text))
             return;
 
+        RunSuggestionRequest(handler, mode, style, text, prefix, original);
+    }
+
+    /// <summary>
+    /// Rewrites the currently shown suggestion in a different tone, so styles
+    /// can be chained (grammar fix, then politer, then shorter) without
+    /// applying in between.
+    /// </summary>
+    public void RequestRestyle(InputHandler handler, RewriteStyle style)
+    {
+        if (!Plugin.Config.AiEnabled || Busy || Suggestion is not { } current || current.Mode == AiMode.Explain)
+            return;
+
+        RunSuggestionRequest(handler, AiMode.Rewrite, style, current.Corrected, current.Prefix, current.OriginalInput);
+    }
+
+    private void RunSuggestionRequest(InputHandler handler, AiMode mode, RewriteStyle? style, string text, string prefix, string originalInput)
+    {
         Busy = true;
         Task.Run(async () =>
         {
             try
             {
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var (corrected, explanations) = await RunAsync(mode, text, cts.Token);
+                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style);
 
                 var suggestion = new AiSuggestion
                 {
                     Mode = mode,
-                    OriginalInput = original,
+                    OriginalInput = originalInput,
                     Prefix = prefix,
                     Corrected = corrected,
+                    Style = style,
                     Explanations = explanations,
                     // A translation has nothing meaningful to diff against.
-                    Words = mode == AiMode.Grammar
+                    Words = mode is AiMode.Grammar or AiMode.Rewrite
                         ? AiSuggestion.DiffWords(text, corrected)
                         : corrected.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(word => (word, false)).ToList(),
                 };
@@ -202,7 +222,7 @@ public class AiManager : IDisposable
                 {
                     // Don't show a stale suggestion if the user changed the
                     // input while the request was running.
-                    if (handler.ChatInput == original)
+                    if (handler.ChatInput == originalInput)
                         Suggestion = suggestion;
                 });
             }

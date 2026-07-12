@@ -520,16 +520,32 @@ public partial class ChatLog : Window, IChatWindow
         }
 
         if (ImGui.IsItemHovered())
-        {
-            var tooltip = "Correct grammar with AI";
-            if (Plugin.AiManager.LastOriginalInput != null)
-                tooltip += "\nRight click: restore the original message";
-
-            ImGuiUtil.Tooltip(tooltip);
-        }
+            ImGuiUtil.Tooltip("Correct grammar with AI\nRight click: rewrite styles");
 
         if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-            Plugin.AiManager.RevertInput(InputHandler);
+            ImGui.OpenPopup("ai-rewrite-menu");
+
+        using (var popup = ImRaii.Popup("ai-rewrite-menu"))
+        {
+            if (popup)
+            {
+                ImGui.TextDisabled("Rewrite as...");
+                using (ImRaii.Disabled(busy || string.IsNullOrWhiteSpace(InputHandler.ChatInput)))
+                {
+                    foreach (var style in Enum.GetValues<RewriteStyle>())
+                        if (ImGui.Selectable(style.Name()))
+                            Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Rewrite, style);
+                }
+
+                ImGui.Separator();
+
+                using (ImRaii.Disabled(Plugin.AiManager.LastOriginalInput == null))
+                {
+                    if (ImGui.Selectable("Restore original"))
+                        Plugin.AiManager.RevertInput(InputHandler);
+                }
+            }
+        }
 
         ImGui.SameLine();
 
@@ -574,6 +590,10 @@ public partial class ChatLog : Window, IChatWindow
             height += ImGui.CalcTextSize($"- {explanation}", false, AiPanelWrapWidth).Y + spacingY;
         height += ImGui.GetFrameHeight() + spacingY; // buttons
 
+        // The rewrite-style row below the buttons.
+        if (suggestion.Mode != AiMode.Explain)
+            height += ImGui.GetFrameHeight() + spacingY;
+
         AiPanelHeight = height;
     }
 
@@ -608,6 +628,7 @@ public partial class ChatLog : Window, IChatWindow
         {
             AiMode.Grammar => "AI grammar suggestion:",
             AiMode.Translate => "AI translation:",
+            AiMode.Rewrite => $"AI rewrite ({(suggestion.Style ?? RewriteStyle.Politer).Name().ToLowerInvariant()}):",
             _ => "AI translation to Thai:",
         };
         ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudViolet, header);
@@ -654,6 +675,23 @@ public partial class ChatLog : Window, IChatWindow
 
         if (ImGui.Button("Dismiss##ai-dismiss"))
             Plugin.AiManager.DismissSuggestion();
+
+        // Chain a tone rewrite on top of the current suggestion.
+        if (suggestion.Mode != AiMode.Explain)
+        {
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextDisabled("Rewrite:");
+
+            using (ImRaii.Disabled(Plugin.AiManager.Busy))
+            {
+                foreach (var style in Enum.GetValues<RewriteStyle>())
+                {
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton($"{style.Name()}##ai-restyle-{style}"))
+                        Plugin.AiManager.RequestRestyle(InputHandler, style);
+                }
+            }
+        }
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()

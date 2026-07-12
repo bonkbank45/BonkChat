@@ -22,6 +22,14 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.44.0 - Rewrite Styles**
+  - Right click the AI button to rewrite your message: Politer,
+    Friendlier or Shorter, with Thai explanations of the tone changes
+  - Chain styles from the suggestion panel without applying in between
+    (e.g. fix grammar, then make it politer, then shorter)
+  - "Restore original" moved into the same right-click menu
+  - Rewrite prompt is configurable in the AI settings tab
+
   **BonkChat 1.43.0**
   - AI API keys are now stored encrypted (Windows DPAPI, per-user);
     existing plain-text keys are encrypted automatically on load

@@ -6,6 +6,35 @@ public enum AiMode
     Translate,
     /// <summary> Translate a received message into Thai for the reader. </summary>
     Explain,
+    /// <summary> Rewrite the message in a different tone. </summary>
+    Rewrite,
+}
+
+public enum RewriteStyle
+{
+    Politer,
+    Friendlier,
+    Shorter,
+}
+
+public static class RewriteStyleExt
+{
+    public static string Name(this RewriteStyle style) => style switch
+    {
+        RewriteStyle.Politer => "Politer",
+        RewriteStyle.Friendlier => "Friendlier",
+        RewriteStyle.Shorter => "Shorter",
+        _ => style.ToString(),
+    };
+
+    /// <summary> The instruction spliced into the rewrite prompt's {style} placeholder. </summary>
+    public static string Instruction(this RewriteStyle style) => style switch
+    {
+        RewriteStyle.Politer => "Rewrite the message to be more polite and courteous, suitable for talking to strangers in an online game.",
+        RewriteStyle.Friendlier => "Rewrite the message to be warmer, more friendly and casual, like chatting with close friends in an online game.",
+        RewriteStyle.Shorter => "Rewrite the message to be as short and concise as possible while keeping its meaning and tone.",
+        _ => "Rewrite the message keeping its meaning.",
+    };
 }
 
 /// <summary>
@@ -20,6 +49,8 @@ public class AiSuggestion
     /// <summary> Command prefix (e.g. "/say "), kept out of the AI request. </summary>
     public required string Prefix;
     public required string Corrected;
+    /// <summary> The tone used, when Mode is Rewrite. </summary>
+    public RewriteStyle? Style;
     public List<string> Explanations = [];
     /// <summary> Corrected text split into words, flagged when changed. </summary>
     public List<(string Word, bool Changed)> Words = [];
