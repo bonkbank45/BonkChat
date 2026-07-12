@@ -63,7 +63,8 @@ public class AiManager : IDisposable
     /// </summary>
     public void RequestSuggestion(InputHandler handler, AiMode mode)
     {
-        if (Busy)
+        // Also guards the keybinds, which are checked regardless of AI state.
+        if (!Plugin.Config.AiEnabled || Busy)
             return;
 
         var original = handler.ChatInput;

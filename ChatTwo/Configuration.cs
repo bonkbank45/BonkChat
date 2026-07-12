@@ -142,6 +142,8 @@ public class Configuration : IPluginConfiguration
     public string SwuAiModel = "google/gemini-2.5-flash";
     public string AiGrammarPrompt = DefaultGrammarPrompt;
     public string AiTranslatePrompt = DefaultTranslatePrompt;
+    public ConfigKeyBind? AiGrammarKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.G };
+    public ConfigKeyBind? AiTranslateKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.T };
 
     // The pre-1.41.0 default, kept so it can be upgraded in place on load.
     public const string LegacyGrammarPrompt =
@@ -252,6 +254,8 @@ public class Configuration : IPluginConfiguration
         SwuAiModel = other.SwuAiModel;
         AiGrammarPrompt = other.AiGrammarPrompt;
         AiTranslatePrompt = other.AiTranslatePrompt;
+        AiGrammarKeybind = other.AiGrammarKeybind;
+        AiTranslateKeybind = other.AiTranslateKeybind;
         WebinterfaceEnabled = other.WebinterfaceEnabled;
         WebinterfaceAutoStart = other.WebinterfaceAutoStart;
         WebinterfacePassword = other.WebinterfacePassword;

@@ -22,6 +22,11 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.41.1**
+  - Keybinds for the AI features, configurable in the AI settings tab
+  - Default: Ctrl+G corrects grammar, Ctrl+T translates to English
+  - Both work while typing in the chat input
+
   **BonkChat 1.41.0 - AI Learning Update**
   - Grammar corrections now open a suggestion panel above the input box
   - Changed words are highlighted, with short explanations in Thai

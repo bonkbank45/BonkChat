@@ -69,6 +69,21 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
         ImGui.Separator();
         ImGui.Spacing();
 
+        ImGui.TextUnformatted("Keybinds (work while typing in the chat input)");
+        ImGuiUtil.HelpText("Click a button and press a key combination. Esc clears the keybind.");
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("Correct grammar");
+        ImGuiUtil.KeybindInput("AiGrammarKeybind", ref Mutable.AiGrammarKeybind);
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("Translate to English");
+        ImGuiUtil.KeybindInput("AiTranslateKeybind", ref Mutable.AiTranslateKeybind);
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
         ImGui.TextUnformatted("Grammar correction prompt");
         ImGui.InputTextMultiline("##ai-grammar-prompt", ref Mutable.AiGrammarPrompt, 2000, new System.Numerics.Vector2(-1, 100));
         if (ImGui.Button("Reset##ai-grammar-reset"))

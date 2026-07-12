@@ -424,6 +424,19 @@ public unsafe class KeybindManager : IDisposable {
             return;
         }
 
+        if (ConfigKeybindPressed(source, Plugin.Config.AiGrammarKeybind))
+        {
+            Plugin.KeyState[Plugin.Config.AiGrammarKeybind!.Key] = false;
+            Plugin.AiManager.RequestSuggestion(Plugin.ChatLog.InputHandler, Ai.AiMode.Grammar);
+            return;
+        }
+        if (ConfigKeybindPressed(source, Plugin.Config.AiTranslateKeybind))
+        {
+            Plugin.KeyState[Plugin.Config.AiTranslateKeybind!.Key] = false;
+            Plugin.AiManager.RequestSuggestion(Plugin.ChatLog.InputHandler, Ai.AiMode.Translate);
+            return;
+        }
+
         // Only process the active combo with the most modifiers.
         var currentBest = (VirtualKey.NO_KEY, "", 0);
         foreach (var (toIntercept, keybind) in Keybinds)
