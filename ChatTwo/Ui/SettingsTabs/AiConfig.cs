@@ -105,6 +105,19 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
         ImGui.Separator();
         ImGui.Spacing();
 
+        var cacheCount = Plugin.AiManager.CacheCount;
+        ImGui.TextUnformatted($"Cached AI responses: {cacheCount}");
+        ImGuiUtil.HelpText("Repeating an identical request is answered from this cache instantly, without calling the AI service.");
+        using (ImRaii.Disabled(cacheCount == 0))
+        {
+            if (ImGui.Button("Clear cache"))
+                Plugin.AiManager.ClearCache();
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
         // The test uses the saved configuration, not the mutable copy, so ask
         // the user to apply their changes first.
         ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, "Save your settings before testing. The test sends \"how i can goes there?\" through the configured provider.");

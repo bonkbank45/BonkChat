@@ -41,9 +41,89 @@ public class AiManager : IDisposable
         _ => OpenAi,
     };
 
+    #region Response cache
+    // Successful responses are cached so repeating a request (re-checking an
+    // unchanged sentence, re-translating a common message like "gg") is
+    // instant and costs no API quota. The key includes provider, model and
+    // prompt, so changing any of them naturally invalidates old entries.
+    private const int CacheLimit = 200;
+    private readonly object CacheLock = new();
+    private readonly Dictionary<string, LinkedListNode<(string Key, string Corrected, List<string> Explanations)>> CacheMap = new();
+    private readonly LinkedList<(string Key, string Corrected, List<string> Explanations)> CacheOrder = new();
+
+    public int CacheCount
+    {
+        get
+        {
+            lock (CacheLock)
+                return CacheMap.Count;
+        }
+    }
+
+    public void ClearCache()
+    {
+        lock (CacheLock)
+        {
+            CacheMap.Clear();
+            CacheOrder.Clear();
+        }
+    }
+
+    private static string CurrentModel => Plugin.Config.AiProvider switch
+    {
+        AiProviderType.OpenAi => Plugin.Config.OpenAiModel,
+        AiProviderType.Gemini => Plugin.Config.GeminiModel,
+        AiProviderType.SwuAi => Plugin.Config.SwuAiModel,
+        _ => string.Empty,
+    };
+
+    private static string CacheKey(AiMode mode, string prompt, string text)
+    {
+        return $"{Plugin.Config.AiProvider}{CurrentModel}{mode}{prompt}{text}";
+    }
+
+    private bool TryGetCached(string key, out (string Corrected, List<string> Explanations) result)
+    {
+        lock (CacheLock)
+        {
+            if (CacheMap.TryGetValue(key, out var node))
+            {
+                // Mark as most recently used.
+                CacheOrder.Remove(node);
+                CacheOrder.AddFirst(node);
+                result = (node.Value.Corrected, node.Value.Explanations);
+                return true;
+            }
+        }
+
+        result = default;
+        return false;
+    }
+
+    private void StoreInCache(string key, string corrected, List<string> explanations)
+    {
+        lock (CacheLock)
+        {
+            if (CacheMap.ContainsKey(key))
+                return;
+
+            var node = CacheOrder.AddFirst((key, corrected, explanations));
+            CacheMap[key] = node;
+
+            if (CacheMap.Count <= CacheLimit)
+                return;
+
+            var oldest = CacheOrder.Last!;
+            CacheMap.Remove(oldest.Value.Key);
+            CacheOrder.RemoveLast();
+        }
+    }
+    #endregion
+
     /// <summary>
     /// Runs the given AI mode over the text and parses the structured reply
     /// into the corrected/translated message and its Thai explanations.
+    /// Successful results are served from an LRU cache when repeated.
     /// </summary>
     public async Task<(string Corrected, List<string> Explanations)> RunAsync(AiMode mode, string text, CancellationToken token)
     {
@@ -53,11 +133,19 @@ public class AiManager : IDisposable
             AiMode.Translate => Plugin.Config.AiTranslatePrompt,
             _ => Plugin.Config.AiExplainPrompt,
         };
+
+        text = text.Trim();
+        var key = CacheKey(mode, prompt, text);
+        if (TryGetCached(key, out var cached))
+            return cached;
+
         var reply = await CurrentProvider.ChatAsync(prompt, text, token);
         var (corrected, explanations) = ParseStructuredReply(reply);
 
         // Collapse newlines; chat messages are single-line.
         corrected = corrected.ReplaceLineEndings(" ").Trim();
+
+        StoreInCache(key, corrected, explanations);
         return (corrected, explanations);
     }
 

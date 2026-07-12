@@ -22,6 +22,11 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.42.2**
+  - AI responses are now cached (LRU, 200 entries): repeating the same
+    request answers instantly without using API quota
+  - Cache size and a clear button in the AI settings tab
+
   **BonkChat 1.42.1**
   - Per-tab background images (set in Settings -> Tabs; falls back to
     the global image when a tab has none)
