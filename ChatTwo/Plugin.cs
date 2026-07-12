@@ -131,6 +131,18 @@ public sealed class Plugin : IDalamudPlugin
                 SaveConfig();
             }
 
+            // Encrypt API keys that older versions stored in plain text.
+            var sealedOpenAi = Ai.SecretUtil.Seal(Config.OpenAiApiKey);
+            var sealedGemini = Ai.SecretUtil.Seal(Config.GeminiApiKey);
+            var sealedSwuAi = Ai.SecretUtil.Seal(Config.SwuAiApiKey);
+            if (sealedOpenAi != Config.OpenAiApiKey || sealedGemini != Config.GeminiApiKey || sealedSwuAi != Config.SwuAiApiKey)
+            {
+                Config.OpenAiApiKey = sealedOpenAi;
+                Config.GeminiApiKey = sealedGemini;
+                Config.SwuAiApiKey = sealedSwuAi;
+                SaveConfig();
+            }
+
             LanguageChanged(Interface.UiLanguage);
             ImGuiUtil.Initialize(this);
 

@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
-        <Version>1.42.2</Version>
+        <Version>1.43.0</Version>
         <ImplicitUsings>enable</ImplicitUsings>
         <!-- Distinct internal name so Dalamud doesn't hide this fork as a
              duplicate of the official Chat 2 plugin. -->
@@ -14,6 +14,7 @@
         <PackageReference Include="Pidgin" Version="3.3.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
         <PackageReference Include="System.Net.Http.WinHttpHandler" Version="9.0.0" />
+        <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
         <PackageReference Include="Watson.Lite" Version="6.3.9" />
     </ItemGroup>
 

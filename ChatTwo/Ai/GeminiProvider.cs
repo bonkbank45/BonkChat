@@ -10,7 +10,7 @@ public class GeminiProvider : IAiProvider
 
     public async Task<string> ChatAsync(string systemPrompt, string userText, CancellationToken token)
     {
-        var apiKey = Plugin.Config.GeminiApiKey;
+        var apiKey = SecretUtil.Open(Plugin.Config.GeminiApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Gemini API key is not set");
 
@@ -51,7 +51,7 @@ public class GeminiProvider : IAiProvider
 
     public async Task<List<string>> GetModelsAsync(CancellationToken token)
     {
-        var apiKey = Plugin.Config.GeminiApiKey;
+        var apiKey = SecretUtil.Open(Plugin.Config.GeminiApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Gemini API key is not set");
 

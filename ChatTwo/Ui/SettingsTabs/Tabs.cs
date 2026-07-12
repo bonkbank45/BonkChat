@@ -95,16 +95,25 @@ public sealed class Tabs : ISettingsTab
             {
                 Plugin.FileDialogManager.OpenFileDialog("Choose a background image for this tab", "Images{.png,.jpg,.jpeg,.bmp,.gif,.webp}", (success, path) =>
                 {
-                    if (success)
-                        tab.BackgroundImagePath = path;
+                    if (!success)
+                        return;
+
+                    tab.BackgroundImagePath = path;
+                    tab.BackgroundImageCrop = new System.Numerics.Vector4(0, 0, 1, 1);
                 });
             }
 
             if (!string.IsNullOrWhiteSpace(tab.BackgroundImagePath))
             {
                 ImGui.SameLine();
+                if (ImGui.Button($"Crop...##tab-bg-crop-{i}"))
+                    BackgroundCropPopup.Open($"##tab-bg-crop-popup-{i}", tab.BackgroundImageCrop);
+
+                ImGui.SameLine();
                 if (ImGui.Button($"Clear##tab-bg-clear-{i}"))
                     tab.BackgroundImagePath = string.Empty;
+
+                BackgroundCropPopup.Draw($"##tab-bg-crop-popup-{i}", tab.BackgroundImagePath, ref tab.BackgroundImageCrop);
 
                 ImGuiUtil.HelpText(tab.BackgroundImagePath);
             }

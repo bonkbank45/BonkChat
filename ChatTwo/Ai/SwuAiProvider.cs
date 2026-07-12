@@ -63,7 +63,7 @@ public class SwuAiProvider : IAiProvider
 
     private static void EnsureConfigured()
     {
-        if (string.IsNullOrWhiteSpace(Plugin.Config.SwuAiApiKey))
+        if (string.IsNullOrWhiteSpace(SecretUtil.Open(Plugin.Config.SwuAiApiKey)))
             throw new InvalidOperationException("SWU AI API key is not set");
         if (string.IsNullOrWhiteSpace(Plugin.Config.SwuAiUserId))
             throw new InvalidOperationException("SWU AI user ID is not set");
@@ -72,7 +72,7 @@ public class SwuAiProvider : IAiProvider
     private static async Task<string> Post(string endpoint, JsonObject body, CancellationToken token)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}{endpoint}");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Plugin.Config.SwuAiApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", SecretUtil.Open(Plugin.Config.SwuAiApiKey));
         // Cloudflare in front of swuai.swu.ac.th rejects requests without a
         // User-Agent with a 403 challenge page, so identify ourselves.
         request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);

@@ -217,6 +217,8 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
         ImGui.TextUnformatted(label[..label.IndexOf("##", StringComparison.Ordinal)]);
         ImGui.SetNextItemWidth(350f);
         ImGui.InputText($"##{label}", ref value, 512, ImGuiInputTextFlags.Password);
+        if (SecretUtil.IsSealed(value))
+            ImGuiUtil.HelpText("Stored encrypted (Windows DPAPI). Type a new key to replace it.");
         ImGui.Spacing();
     }
 }

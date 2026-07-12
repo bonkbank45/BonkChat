@@ -357,12 +357,14 @@ public partial class ChatLog : Window, IChatWindow
 
     private static bool IsChatMode => Plugin.Config.PreviewPosition is PreviewPosition.Inside or PreviewPosition.Tooltip;
 
+    /// <summary> Size of the main chat window, used by the crop editor. </summary>
+    public static Vector2 MainWindowSize { get; private set; }
+
     public static void DrawBackgroundImage(Tab? tab)
     {
         // A tab-specific image wins over the global one.
-        var path = tab is not null && !string.IsNullOrWhiteSpace(tab.BackgroundImagePath)
-            ? tab.BackgroundImagePath
-            : Plugin.Config.BackgroundImagePath;
+        var useTabImage = tab is not null && !string.IsNullOrWhiteSpace(tab.BackgroundImagePath);
+        var path = useTabImage ? tab!.BackgroundImagePath : Plugin.Config.BackgroundImagePath;
         if (string.IsNullOrWhiteSpace(path))
             return;
 
@@ -373,25 +375,36 @@ public partial class ChatLog : Window, IChatWindow
         var pos = ImGui.GetWindowPos();
         var size = ImGui.GetWindowSize();
 
-        var uv0 = Vector2.Zero;
-        var uv1 = Vector2.One;
+        // The user-defined crop selects the visible region of the image.
+        var crop = useTabImage ? tab!.BackgroundImageCrop : Plugin.Config.BackgroundImageCrop;
+        var uv0 = new Vector2(crop.X, crop.Y);
+        var uv1 = new Vector2(crop.Z, crop.W);
+        if (uv1.X <= uv0.X || uv1.Y <= uv0.Y)
+        {
+            uv0 = Vector2.Zero;
+            uv1 = Vector2.One;
+        }
+
         if (Plugin.Config.BackgroundImageFitMode == BackgroundImageFit.Cover && size.Y > 0 && texture.Height > 0)
         {
-            // Crop the image to the window's aspect ratio instead of
-            // stretching it.
-            var imageAspect = (float) texture.Width / texture.Height;
+            // Fit the (cropped) region to the window's aspect ratio instead
+            // of stretching it, trimming the overflowing sides. This also
+            // keeps a crop looking right after the window is resized.
+            var regionWidth = (uv1.X - uv0.X) * texture.Width;
+            var regionHeight = (uv1.Y - uv0.Y) * texture.Height;
+            var imageAspect = regionWidth / regionHeight;
             var windowAspect = size.X / size.Y;
             if (imageAspect > windowAspect)
             {
-                var visible = windowAspect / imageAspect;
-                uv0.X = (1 - visible) / 2;
-                uv1.X = 1 - uv0.X;
+                var trim = (uv1.X - uv0.X) * (1 - windowAspect / imageAspect) / 2;
+                uv0.X += trim;
+                uv1.X -= trim;
             }
             else if (imageAspect < windowAspect)
             {
-                var visible = imageAspect / windowAspect;
-                uv0.Y = (1 - visible) / 2;
-                uv1.Y = 1 - uv0.Y;
+                var trim = (uv1.Y - uv0.Y) * (1 - imageAspect / windowAspect) / 2;
+                uv0.Y += trim;
+                uv1.Y -= trim;
             }
         }
 
@@ -409,6 +422,7 @@ public partial class ChatLog : Window, IChatWindow
         var currentSize = ImGui.GetWindowSize();
         var resized = LastWindowSize != currentSize;
         LastWindowSize = currentSize;
+        MainWindowSize = currentSize;
         LastWindowPos = ImGui.GetWindowPos();
 
         if (resized)

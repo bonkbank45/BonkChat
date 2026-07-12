@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Numerics;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions.Types;
 using ChatTwo.Resources;
@@ -179,6 +180,8 @@ public class Configuration : IPluginConfiguration
     public string BackgroundImagePath = string.Empty;
     public float BackgroundImageOpacity = 50f; // percent
     public BackgroundImageFit BackgroundImageFitMode = BackgroundImageFit.Cover;
+    /// <summary> Crop region as UV rect (X,Y = top-left, Z,W = bottom-right); (0,0,1,1) = full image. </summary>
+    public Vector4 BackgroundImageCrop = new(0, 0, 1, 1);
 
     // Webinterface
     public bool WebinterfaceEnabled;
@@ -258,11 +261,11 @@ public class Configuration : IPluginConfiguration
         ChatTabBackward = other.ChatTabBackward;
         AiEnabled = other.AiEnabled;
         AiProvider = other.AiProvider;
-        OpenAiApiKey = other.OpenAiApiKey;
+        OpenAiApiKey = Ai.SecretUtil.Seal(other.OpenAiApiKey);
         OpenAiModel = other.OpenAiModel;
-        GeminiApiKey = other.GeminiApiKey;
+        GeminiApiKey = Ai.SecretUtil.Seal(other.GeminiApiKey);
         GeminiModel = other.GeminiModel;
-        SwuAiApiKey = other.SwuAiApiKey;
+        SwuAiApiKey = Ai.SecretUtil.Seal(other.SwuAiApiKey);
         SwuAiUserId = other.SwuAiUserId;
         SwuAiModel = other.SwuAiModel;
         AiGrammarPrompt = other.AiGrammarPrompt;
@@ -273,6 +276,7 @@ public class Configuration : IPluginConfiguration
         BackgroundImagePath = other.BackgroundImagePath;
         BackgroundImageOpacity = other.BackgroundImageOpacity;
         BackgroundImageFitMode = other.BackgroundImageFitMode;
+        BackgroundImageCrop = other.BackgroundImageCrop;
         WebinterfaceEnabled = other.WebinterfaceEnabled;
         WebinterfaceAutoStart = other.WebinterfaceAutoStart;
         WebinterfacePassword = other.WebinterfacePassword;
@@ -342,6 +346,8 @@ public class Tab
 
     /// <summary> Per-tab background image; empty falls back to the global one. </summary>
     public string BackgroundImagePath = string.Empty;
+    /// <summary> Crop region for the tab image as UV rect; (0,0,1,1) = full image. </summary>
+    public Vector4 BackgroundImageCrop = new(0, 0, 1, 1);
 
     public bool CanMove = true;
     public bool CanResize = true;
@@ -441,6 +447,7 @@ public class Tab
             AllSenderMessages = AllSenderMessages,
             TellTarget = TellTarget.Clone(),
             BackgroundImagePath = BackgroundImagePath,
+            BackgroundImageCrop = BackgroundImageCrop,
         };
     }
 

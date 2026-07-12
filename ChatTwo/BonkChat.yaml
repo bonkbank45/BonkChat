@@ -22,6 +22,13 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.43.0**
+  - AI API keys are now stored encrypted (Windows DPAPI, per-user);
+    existing plain-text keys are encrypted automatically on load
+  - Background images can be cropped: the crop frame is locked to your
+    current chat window size, drag to position and zoom to frame
+  - Works for both the global image and per-tab images
+
   **BonkChat 1.42.2**
   - AI responses are now cached (LRU, 200 entries): repeating the same
     request answers instantly without using API quota

@@ -124,16 +124,25 @@ public sealed class Display : ISettingsTab
         {
             Plugin.FileDialogManager.OpenFileDialog("Choose a background image", "Images{.png,.jpg,.jpeg,.bmp,.gif,.webp}", (success, path) =>
             {
-                if (success)
-                    Mutable.BackgroundImagePath = path;
+                if (!success)
+                    return;
+
+                Mutable.BackgroundImagePath = path;
+                Mutable.BackgroundImageCrop = new System.Numerics.Vector4(0, 0, 1, 1);
             });
         }
 
         if (!string.IsNullOrWhiteSpace(Mutable.BackgroundImagePath))
         {
             ImGui.SameLine();
+            if (ImGui.Button("Crop..."))
+                BackgroundCropPopup.Open("##global-bg-crop", Mutable.BackgroundImageCrop);
+
+            ImGui.SameLine();
             if (ImGui.Button("Clear"))
                 Mutable.BackgroundImagePath = string.Empty;
+
+            BackgroundCropPopup.Draw("##global-bg-crop", Mutable.BackgroundImagePath, ref Mutable.BackgroundImageCrop);
 
             ImGui.TextUnformatted(Mutable.BackgroundImagePath);
             ImGui.Spacing();

@@ -11,7 +11,7 @@ public class OpenAiProvider : IAiProvider
 
     public async Task<string> ChatAsync(string systemPrompt, string userText, CancellationToken token)
     {
-        var apiKey = Plugin.Config.OpenAiApiKey;
+        var apiKey = SecretUtil.Open(Plugin.Config.OpenAiApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("OpenAI API key is not set");
 
@@ -45,7 +45,7 @@ public class OpenAiProvider : IAiProvider
 
     public async Task<List<string>> GetModelsAsync(CancellationToken token)
     {
-        var apiKey = Plugin.Config.OpenAiApiKey;
+        var apiKey = SecretUtil.Open(Plugin.Config.OpenAiApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("OpenAI API key is not set");
 
