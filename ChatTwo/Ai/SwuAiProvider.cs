@@ -10,7 +10,9 @@ namespace ChatTwo.Ai;
 /// Provider for the SWU AI service (Srinakharinwirot University), implemented
 /// after the official "API Services SWU AI" manual v1:
 /// - POST /swu/api/service/get-all-models with { user_id }
+///   returns { "models": [ { "name": "..." } ], "count": n, "requested_by": ... }
 /// - POST /swu/api/service/chat with { user_id, model, content }
+///   returns an OpenAI-compatible completion (choices[0].message.content)
 /// Both authenticated with "Authorization: Bearer &lt;SWU API KEY&gt;".
 /// </summary>
 public class SwuAiProvider : IAiProvider
@@ -31,9 +33,11 @@ public class SwuAiProvider : IAiProvider
         };
 
         var raw = await Post("/swu/api/service/chat", body, token);
-        var content = AiUtil.ExtractTextFromUnknownJson(raw);
+
+        var json = JsonNode.Parse(raw);
+        var content = json?["choices"]?[0]?["message"]?["content"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(content))
-            throw new JsonException($"SWU AI response had no recognizable content: {AiUtil.Truncate(raw)}");
+            throw new JsonException($"SWU AI response had no content: {AiUtil.Truncate(raw)}");
 
         return content.Trim();
     }
@@ -45,19 +49,17 @@ public class SwuAiProvider : IAiProvider
         var body = new JsonObject { ["user_id"] = Plugin.Config.SwuAiUserId };
         var raw = await Post("/swu/api/service/get-all-models", body, token);
 
-        // The manual does not document the response shape, so collect every
-        // string that plausibly names a model from the returned JSON.
-        var models = new List<string>();
-        try
-        {
-            CollectStrings(JsonNode.Parse(raw), models);
-        }
-        catch (JsonException)
-        {
-            throw new JsonException($"SWU AI get-all-models returned invalid JSON: {AiUtil.Truncate(raw)}");
-        }
+        var json = JsonNode.Parse(raw);
+        if (json?["models"] is not JsonArray modelArray)
+            throw new JsonException($"SWU AI get-all-models had no model list: {AiUtil.Truncate(raw)}");
 
-        return models.Distinct().ToList();
+        var models = new List<string>();
+        foreach (var entry in modelArray)
+            if (entry?["name"]?.GetValue<string>() is { } name && !string.IsNullOrWhiteSpace(name))
+                models.Add(name);
+
+        models.Sort();
+        return models;
     }
 
     private static void EnsureConfigured()
@@ -80,33 +82,5 @@ public class SwuAiProvider : IAiProvider
             throw new HttpRequestException($"SWU AI returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");
 
         return raw;
-    }
-
-    private static void CollectStrings(JsonNode? node, List<string> into)
-    {
-        switch (node)
-        {
-            case JsonValue value when value.TryGetValue<string>(out var str) && !string.IsNullOrWhiteSpace(str):
-                into.Add(str);
-                break;
-            case JsonArray array:
-                foreach (var entry in array)
-                    CollectStrings(entry, into);
-                break;
-            case JsonObject obj:
-                // Prefer obvious name fields; otherwise recurse into everything.
-                foreach (var key in new[] { "model", "name", "id" })
-                {
-                    if (obj[key] is JsonValue named && named.TryGetValue<string>(out var str) && !string.IsNullOrWhiteSpace(str))
-                    {
-                        into.Add(str);
-                        return;
-                    }
-                }
-
-                foreach (var (_, child) in obj)
-                    CollectStrings(child, into);
-                break;
-        }
     }
 }
