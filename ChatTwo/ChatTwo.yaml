@@ -1,6 +1,6 @@
-name: Chat 2
-author: Infi, Anna
-punchline: Electric Boogaloo - ♪ A whole new chat, a new fantastic chat window ♪
+name: Chat 2 (BonkChat)
+author: bonkBANK, Infi, Anna
+punchline: Chat 2 fork with AI grammar correction to practice your English while you play.
 description: |-
   Chat 2 is a complete rewrite of the in-game chat window as a plugin.
   It supports:
@@ -14,7 +14,7 @@ description: |-
   - Unread counts
   - Emotes
   - Screenshot mode (obfuscate names)
-repo_url: https://github.com/Infiziert90/ChatTwo
+repo_url: https://github.com/bonkbank45/BonkChat
 accepts_feedback: true
 tags:
   - Social
