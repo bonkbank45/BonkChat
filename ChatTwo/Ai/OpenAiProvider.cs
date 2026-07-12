@@ -28,6 +28,7 @@ public class OpenAiProvider : IAiProvider
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/chat/completions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
         using var response = await ServerCore.HttpClient.SendAsync(request, token);
@@ -51,6 +52,7 @@ public class OpenAiProvider : IAiProvider
 
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/models");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
 
         using var response = await ServerCore.HttpClient.SendAsync(request, token);
         var raw = await response.Content.ReadAsStringAsync(token);

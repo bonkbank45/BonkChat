@@ -34,6 +34,7 @@ public class GeminiProvider : IAiProvider
         var url = $"{BaseUrl}/models/{Plugin.Config.GeminiModel}:generateContent";
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Headers.Add("x-goog-api-key", apiKey);
+        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
         using var response = await ServerCore.HttpClient.SendAsync(request, token);
@@ -57,6 +58,7 @@ public class GeminiProvider : IAiProvider
 
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/models");
         request.Headers.Add("x-goog-api-key", apiKey);
+        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
 
         using var response = await ServerCore.HttpClient.SendAsync(request, token);
         var raw = await response.Content.ReadAsStringAsync(token);

@@ -74,6 +74,10 @@ public class SwuAiProvider : IAiProvider
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}{endpoint}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Plugin.Config.SwuAiApiKey);
+        // Cloudflare in front of swuai.swu.ac.th rejects requests without a
+        // User-Agent with a 403 challenge page, so identify ourselves.
+        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
+        request.Headers.TryAddWithoutValidation("Accept", "application/json");
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
         using var response = await ServerCore.HttpClient.SendAsync(request, token);
