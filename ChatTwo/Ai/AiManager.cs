@@ -143,11 +143,37 @@ public class AiManager : IDisposable
         var reply = await CurrentProvider.ChatAsync(prompt, text, token);
         var (corrected, explanations) = ParseStructuredReply(reply);
 
-        // Collapse newlines; chat messages are single-line.
-        corrected = corrected.ReplaceLineEndings(" ").Trim();
+        // Collapse newlines; chat messages are single-line. Strip emoji as a
+        // hard guarantee on top of the prompt instruction: the game chat and
+        // the panel font can't render them.
+        corrected = StripEmoji(corrected.ReplaceLineEndings(" ")).Trim();
+        explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
 
         StoreInCache(key, corrected, explanations);
         return (corrected, explanations);
+    }
+
+    /// <summary>
+    /// Removes emoji: all astral-plane characters (surrogate pairs), zero
+    /// width joiners and variation selectors. BMP text (Latin, Thai, JP and
+    /// the symbols the game does support) passes through untouched.
+    /// </summary>
+    public static string StripEmoji(string text)
+    {
+        if (!text.Any(c => char.IsSurrogate(c) || c is '️' or '‍'))
+            return text;
+
+        var builder = new System.Text.StringBuilder(text.Length);
+        foreach (var c in text)
+        {
+            if (char.IsSurrogate(c) || c is '️' or '‍')
+                continue;
+
+            builder.Append(c);
+        }
+
+        // Collapse double spaces left behind by removed emoji.
+        return builder.Replace("  ", " ").ToString();
     }
 
     /// <summary>

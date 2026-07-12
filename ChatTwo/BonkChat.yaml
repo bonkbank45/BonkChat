@@ -22,6 +22,14 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.45.0**
+  - The AI panel is now a floating window above the chat box, so long
+    suggestions no longer shrink the message log
+  - AI replies never contain emoji anymore (prompt rule + hard strip);
+    the game chat cannot display them
+  - AI is instructed to avoid unnecessary exclamation marks
+  - Saved prompts matching an older default are upgraded automatically
+
   **BonkChat 1.44.0 - Rewrite Styles**
   - Right click the AI button to rewrite your message: Politer,
     Friendlier or Shorter, with Thai explanations of the tone changes

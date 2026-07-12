@@ -222,11 +222,6 @@ public partial class ChatLog : Window, IChatWindow
         if (supportsInputPreview && Plugin.Config.PreviewPosition is PreviewPosition.Inside)
             height -= Plugin.InputPreview.PreviewHeight;
 
-        // The AI suggestion panel only exists in the main chat window, which
-        // is also the only caller that supports the input preview.
-        if (supportsInputPreview)
-            height -= AiPanelHeight;
-
         return height;
     }
 
@@ -434,8 +429,6 @@ public partial class ChatLog : Window, IChatWindow
         if (IsChatMode && Plugin.InputPreview.IsDrawable)
             Plugin.InputPreview.CalculatePreview();
 
-        CalculateAiPanel();
-
         if (Plugin.Config.SidebarTabView)
             DrawTabSidebar();
         else
@@ -449,8 +442,6 @@ public partial class ChatLog : Window, IChatWindow
 
         if (Plugin.Config.PreviewPosition is PreviewPosition.Inside && Plugin.InputPreview.IsDrawable)
             Plugin.InputPreview.DrawPreview();
-
-        DrawAiPanel();
 
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
             DrawChannelName(activeTab);
@@ -557,141 +548,6 @@ public partial class ChatLog : Window, IChatWindow
 
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip("Translate to English with AI");
-    }
-
-    public float AiPanelHeight { get; private set; }
-    private float AiPanelWrapWidth;
-
-    private void CalculateAiPanel()
-    {
-        AiPanelHeight = 0;
-        if (Plugin.AiManager.Suggestion is not { } suggestion)
-            return;
-
-        // The suggestion is stale once the input was sent or cleared, except
-        // for explanations of received messages, which don't touch the input.
-        if (suggestion.Mode != AiMode.Explain && InputHandler.ChatInput.Length == 0)
-        {
-            Plugin.AiManager.DismissSuggestion();
-            return;
-        }
-
-        AiPanelWrapWidth = ImGui.GetContentRegionAvail().X;
-
-        var lineHeight = ImGui.GetTextLineHeight();
-        var spacingY = ImGui.GetStyle().ItemSpacing.Y;
-
-        var height = spacingY + 1 + spacingY; // separator
-        height += lineHeight + spacingY; // header
-        height += suggestion.Mode == AiMode.Explain
-            ? ImGui.CalcTextSize(suggestion.Corrected, false, AiPanelWrapWidth).Y + spacingY
-            : CountWordLines(suggestion.Words, AiPanelWrapWidth) * (lineHeight + spacingY);
-        foreach (var explanation in suggestion.Explanations)
-            height += ImGui.CalcTextSize($"- {explanation}", false, AiPanelWrapWidth).Y + spacingY;
-        height += ImGui.GetFrameHeight() + spacingY; // buttons
-
-        // The rewrite-style row below the buttons.
-        if (suggestion.Mode != AiMode.Explain)
-            height += ImGui.GetFrameHeight() + spacingY;
-
-        AiPanelHeight = height;
-    }
-
-    private static int CountWordLines(List<(string Word, bool Changed)> words, float wrapWidth)
-    {
-        var spacing = ImGui.GetStyle().ItemSpacing.X;
-        var lines = 1;
-        var remaining = wrapWidth;
-        foreach (var (word, _) in words)
-        {
-            var width = ImGui.CalcTextSize(word).X;
-            if (remaining < width && remaining < wrapWidth)
-            {
-                lines++;
-                remaining = wrapWidth;
-            }
-
-            remaining -= width + spacing;
-        }
-
-        return lines;
-    }
-
-    private void DrawAiPanel()
-    {
-        if (AiPanelHeight <= 0 || Plugin.AiManager.Suggestion is not { } suggestion)
-            return;
-
-        ImGui.Separator();
-
-        var header = suggestion.Mode switch
-        {
-            AiMode.Grammar => "AI grammar suggestion:",
-            AiMode.Translate => "AI translation:",
-            AiMode.Rewrite => $"AI rewrite ({(suggestion.Style ?? RewriteStyle.Politer).Name().ToLowerInvariant()}):",
-            _ => "AI translation to Thai:",
-        };
-        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudViolet, header);
-
-        if (suggestion.Mode == AiMode.Explain)
-        {
-            // Thai text has no spaces, so word-based rendering doesn't apply.
-            ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudWhite, suggestion.Corrected);
-        }
-        else
-        {
-            // The suggested text, changed words highlighted, wrapped manually
-            // with the same accounting as CountWordLines.
-            var spacingX = ImGui.GetStyle().ItemSpacing.X;
-            var remaining = AiPanelWrapWidth;
-            foreach (var (word, changed) in suggestion.Words)
-            {
-                var width = ImGui.CalcTextSize(word).X;
-                if (remaining < width && remaining < AiPanelWrapWidth)
-                {
-                    ImGui.NewLine();
-                    remaining = AiPanelWrapWidth;
-                }
-
-                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, changed))
-                    ImGui.TextUnformatted(word);
-                ImGui.SameLine();
-
-                remaining -= width + spacingX;
-            }
-            ImGui.NewLine();
-        }
-
-        foreach (var explanation in suggestion.Explanations)
-            ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, $"- {explanation}");
-
-        if (suggestion.Mode != AiMode.Explain)
-        {
-            if (ImGui.Button("Apply##ai-apply"))
-                Plugin.AiManager.ApplySuggestion(InputHandler);
-
-            ImGui.SameLine();
-        }
-
-        if (ImGui.Button("Dismiss##ai-dismiss"))
-            Plugin.AiManager.DismissSuggestion();
-
-        // Chain a tone rewrite on top of the current suggestion.
-        if (suggestion.Mode != AiMode.Explain)
-        {
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextDisabled("Rewrite:");
-
-            using (ImRaii.Disabled(Plugin.AiManager.Busy))
-            {
-                foreach (var style in Enum.GetValues<RewriteStyle>())
-                {
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton($"{style.Name()}##ai-restyle-{style}"))
-                        Plugin.AiManager.RequestRestyle(InputHandler, style);
-                }
-            }
-        }
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()

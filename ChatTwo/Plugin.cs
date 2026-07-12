@@ -52,6 +52,7 @@ public sealed class Plugin : IDalamudPlugin
     public ChatLog ChatLog { get; }
     public DbViewer DbViewer { get; }
     public InputPreview InputPreview { get; }
+    public AiSuggestionWindow AiSuggestionWindow { get; }
     public CommandHelpWindow CommandHelpWindow { get; }
     public SeStringDebugger SeStringDebugger { get; }
     public DebuggerWindow DebuggerWindow { get; }
@@ -123,13 +124,31 @@ public sealed class Plugin : IDalamudPlugin
             if (Config.Tabs.Count == 0)
                 Config.Tabs.Add(TabsUtil.VanillaGeneral);
 
-            // Upgrade the plain-text grammar prompt of 1.40.x to the JSON one
-            // that learning mode needs, unless the user customized it.
-            if (Config.AiGrammarPrompt == Configuration.LegacyGrammarPrompt)
+            // Upgrade saved AI prompts that still match an older default to
+            // the current default, leaving user-customized prompts alone.
+            var promptsUpgraded = false;
+            if (Config.AiGrammarPrompt is Configuration.LegacyGrammarPrompt or Configuration.LegacyGrammarPromptV2)
             {
                 Config.AiGrammarPrompt = Configuration.DefaultGrammarPrompt;
-                SaveConfig();
+                promptsUpgraded = true;
             }
+            if (Config.AiTranslatePrompt == Configuration.LegacyTranslatePromptV1)
+            {
+                Config.AiTranslatePrompt = Configuration.DefaultTranslatePrompt;
+                promptsUpgraded = true;
+            }
+            if (Config.AiExplainPrompt == Configuration.LegacyExplainPromptV1)
+            {
+                Config.AiExplainPrompt = Configuration.DefaultExplainPrompt;
+                promptsUpgraded = true;
+            }
+            if (Config.AiRewritePrompt == Configuration.LegacyRewritePromptV1)
+            {
+                Config.AiRewritePrompt = Configuration.DefaultRewritePrompt;
+                promptsUpgraded = true;
+            }
+            if (promptsUpgraded)
+                SaveConfig();
 
             // Encrypt API keys that older versions stored in plain text.
             var sealedOpenAi = Ai.SecretUtil.Seal(Config.OpenAiApiKey);
@@ -165,6 +184,7 @@ public sealed class Plugin : IDalamudPlugin
             SettingsWindow = new SettingsWindow(this);
             DbViewer = new DbViewer(this);
             InputPreview = new InputPreview(ChatLog.InputHandler);
+            AiSuggestionWindow = new AiSuggestionWindow(this);
             CommandHelpWindow = new CommandHelpWindow(ChatLog);
             SeStringDebugger = new SeStringDebugger(this);
             DebuggerWindow = new DebuggerWindow(this);
@@ -173,6 +193,7 @@ public sealed class Plugin : IDalamudPlugin
             WindowSystem.AddWindow(SettingsWindow);
             WindowSystem.AddWindow(DbViewer);
             WindowSystem.AddWindow(InputPreview);
+        WindowSystem.AddWindow(AiSuggestionWindow);
             WindowSystem.AddWindow(CommandHelpWindow);
             WindowSystem.AddWindow(SeStringDebugger);
             WindowSystem.AddWindow(DebuggerWindow);

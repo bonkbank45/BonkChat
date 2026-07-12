@@ -155,7 +155,14 @@ public class Configuration : IPluginConfiguration
         + "Reply with ONLY the corrected message - no quotes, no explanations, no extra text. "
         + "If the message is already correct, reply with the original message unchanged.";
 
-    public const string DefaultGrammarPrompt =
+    // The rule appended to every prompt that produces chat-bound text: the
+    // game chat cannot render emoji, and exclamation marks read as shouting.
+    public const string NoEmojiRule =
+        " Never use emoji or emoticons anywhere in your reply; the game chat cannot display them."
+        + " Avoid exclamation marks unless they are truly necessary.";
+
+    // Pre-1.45.0 defaults, kept so saved configs can be upgraded in place.
+    public const string LegacyGrammarPromptV2 =
         "You are an English teacher helping a Thai player practice English in an online game chat. "
         + "Correct the grammar and spelling of the user's message while keeping its meaning, tone and casual style. "
         + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
@@ -163,26 +170,31 @@ public class Configuration : IPluginConfiguration
         + "Each explanation is one short Thai sentence about one fix, quoting the relevant English words. "
         + "If the message is already correct, return it unchanged with an empty explanations array.";
 
-    public const string DefaultRewritePrompt =
+    public const string LegacyRewritePromptV1 =
         "You are an English teacher helping a Thai player chat in an online game. {style} "
         + "If the message is in Thai, translate it into English with that tone. "
         + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
         + "{\"corrected\":\"<the rewritten message>\",\"explanations\":[\"<short explanation in Thai>\"]} "
         + "Each explanation is one short Thai sentence about why the new phrasing fits the tone, quoting the relevant English words.";
 
-    public const string DefaultExplainPrompt =
+    public const string LegacyExplainPromptV1 =
         "You are an English teacher helping a Thai player understand English messages in an online game. "
         + "Translate the message into natural Thai. "
         + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
         + "{\"corrected\":\"<Thai translation>\",\"explanations\":[\"<short Thai note>\"]} "
         + "Explanations: up to 3 short Thai notes explaining slang, gaming abbreviations or useful vocabulary from the message.";
 
-    public const string DefaultTranslatePrompt =
+    public const string LegacyTranslatePromptV1 =
         "You are an English teacher helping a Thai player chat in an online game. "
         + "Translate the user's Thai (or mixed Thai-English) message into natural, casual English suitable for game chat. "
         + "Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
         + "{\"corrected\":\"<the English message>\",\"explanations\":[\"<short note in Thai>\"]} "
         + "Explanations: up to 3 short Thai notes teaching vocabulary or phrasing used in the translation.";
+
+    public const string DefaultGrammarPrompt = LegacyGrammarPromptV2 + NoEmojiRule;
+    public const string DefaultRewritePrompt = LegacyRewritePromptV1 + NoEmojiRule;
+    public const string DefaultTranslatePrompt = LegacyTranslatePromptV1 + NoEmojiRule;
+    public const string DefaultExplainPrompt = LegacyExplainPromptV1 + " Do not use emoji in your reply.";
 
     // Background image
     public string BackgroundImagePath = string.Empty;
