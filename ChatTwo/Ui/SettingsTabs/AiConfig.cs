@@ -1,0 +1,182 @@
+using ChatTwo.Ai;
+using ChatTwo.Util;
+using Dalamud.Interface.Colors;
+using Dalamud.Interface.ImGuiNotification;
+using Dalamud.Interface.Utility.Raii;
+using Dalamud.Bindings.ImGui;
+
+namespace ChatTwo.Ui.SettingsTabs;
+
+public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTab
+{
+    private Plugin Plugin { get; } = plugin;
+    private Configuration Mutable { get; } = mutable;
+    public string Name => "AI###tabs-Ai";
+
+    private bool TestRunning;
+    private bool ModelsLoading;
+    private List<string> AvailableModels = [];
+
+    public void Draw(bool changed)
+    {
+        ImGuiUtil.OptionCheckbox(ref Mutable.AiEnabled, "Enable AI features", "Shows the grammar correction button next to the chat input.");
+        ImGui.Spacing();
+
+        if (!Mutable.AiEnabled)
+            return;
+
+        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudOrange, "Your message is sent to the selected AI service when you press the correction button. API keys are stored in the plugin configuration in plain text.");
+        ImGui.Spacing();
+
+        using (var combo = ImGuiUtil.BeginComboVertical("Provider", Mutable.AiProvider.Name()))
+        {
+            if (combo)
+            {
+                foreach (var type in Enum.GetValues<AiProviderType>())
+                {
+                    if (ImGui.Selectable(type.Name(), type == Mutable.AiProvider))
+                    {
+                        Mutable.AiProvider = type;
+                        AvailableModels = [];
+                    }
+                }
+            }
+        }
+        ImGui.Spacing();
+
+        switch (Mutable.AiProvider)
+        {
+            case AiProviderType.OpenAi:
+                PasswordInput("API key##openai-key", ref Mutable.OpenAiApiKey);
+                TextInput("Model##openai-model", ref Mutable.OpenAiModel);
+                break;
+            case AiProviderType.Gemini:
+                PasswordInput("API key##gemini-key", ref Mutable.GeminiApiKey);
+                TextInput("Model##gemini-model", ref Mutable.GeminiModel);
+                break;
+            case AiProviderType.SwuAi:
+                ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, "Request an API key and user ID by registering on the SWU AI system (swuai.swu.ac.th).");
+                PasswordInput("API key##swu-key", ref Mutable.SwuAiApiKey);
+                TextInput("User ID##swu-user", ref Mutable.SwuAiUserId);
+                TextInput("Model##swu-model", ref Mutable.SwuAiModel);
+                break;
+        }
+
+        ImGui.Spacing();
+        DrawModelList();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("Grammar correction prompt");
+        ImGui.InputTextMultiline("##ai-grammar-prompt", ref Mutable.AiGrammarPrompt, 2000, new System.Numerics.Vector2(-1, 100));
+        if (ImGui.Button("Reset prompt to default"))
+            Mutable.AiGrammarPrompt = Configuration.DefaultGrammarPrompt;
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // The test uses the saved configuration, not the mutable copy, so ask
+        // the user to apply their changes first.
+        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, "Save your settings before testing. The test sends \"how i can goes there?\" through the configured provider.");
+        using (ImRaii.Disabled(TestRunning))
+        {
+            if (ImGui.Button(TestRunning ? "Testing..." : "Test connection"))
+            {
+                TestRunning = true;
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        var result = await Plugin.AiManager.CorrectGrammarAsync("how i can goes there?", cts.Token);
+                        WrapperUtil.AddNotification($"AI test succeeded: {result}", NotificationType.Success);
+                    }
+                    catch (Exception ex)
+                    {
+                        WrapperUtil.AddNotification($"AI test failed: {ex.Message}", NotificationType.Error);
+                    }
+                    finally
+                    {
+                        TestRunning = false;
+                    }
+                });
+            }
+        }
+    }
+
+    private void DrawModelList()
+    {
+        using (ImRaii.Disabled(ModelsLoading))
+        {
+            if (ImGui.Button(ModelsLoading ? "Loading models..." : "Fetch available models"))
+            {
+                ModelsLoading = true;
+                var provider = Plugin.AiManager.GetProvider(Mutable.AiProvider);
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        AvailableModels = await provider.GetModelsAsync(cts.Token);
+                        if (AvailableModels.Count == 0)
+                            WrapperUtil.AddNotification("No models returned", NotificationType.Warning);
+                    }
+                    catch (Exception ex)
+                    {
+                        WrapperUtil.AddNotification($"Fetching models failed: {ex.Message}", NotificationType.Error);
+                    }
+                    finally
+                    {
+                        ModelsLoading = false;
+                    }
+                });
+            }
+        }
+        ImGuiUtil.HelpText("Uses the saved API key, so save your settings first. Click a model to select it.");
+
+        if (AvailableModels.Count == 0)
+            return;
+
+        using var child = ImRaii.Child("##ai-model-list", new System.Numerics.Vector2(-1, 150), true);
+        if (!child)
+            return;
+
+        foreach (var model in AvailableModels)
+        {
+            if (ImGui.Selectable(model))
+            {
+                switch (Mutable.AiProvider)
+                {
+                    case AiProviderType.OpenAi:
+                        Mutable.OpenAiModel = model;
+                        break;
+                    case AiProviderType.Gemini:
+                        Mutable.GeminiModel = model;
+                        break;
+                    case AiProviderType.SwuAi:
+                        Mutable.SwuAiModel = model;
+                        break;
+                }
+            }
+        }
+    }
+
+    private static void TextInput(string label, ref string value)
+    {
+        ImGui.TextUnformatted(label[..label.IndexOf("##", StringComparison.Ordinal)]);
+        ImGui.SetNextItemWidth(350f);
+        ImGui.InputText($"##{label}", ref value, 512);
+        ImGui.Spacing();
+    }
+
+    private static void PasswordInput(string label, ref string value)
+    {
+        ImGui.TextUnformatted(label[..label.IndexOf("##", StringComparison.Ordinal)]);
+        ImGui.SetNextItemWidth(350f);
+        ImGui.InputText($"##{label}", ref value, 512, ImGuiInputTextFlags.Password);
+        ImGui.Spacing();
+    }
+}

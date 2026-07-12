@@ -41,6 +41,7 @@ public sealed class SettingsWindow : Window
             new ChatColours(Plugin, Mutable),
             new Tabs(Plugin, Mutable),
             new Database(Plugin, Mutable),
+            new AiConfig(Plugin, Mutable),
             new Webinterface(Plugin, Mutable),
             new Miscellaneous(Mutable),
             new Changelog(Mutable),

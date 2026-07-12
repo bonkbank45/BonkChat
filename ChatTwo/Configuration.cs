@@ -130,6 +130,24 @@ public class Configuration : IPluginConfiguration
     public ConfigKeyBind? ChatTabForward;
     public ConfigKeyBind? ChatTabBackward;
 
+    // AI
+    public bool AiEnabled;
+    public Ai.AiProviderType AiProvider = Ai.AiProviderType.SwuAi;
+    public string OpenAiApiKey = string.Empty;
+    public string OpenAiModel = "gpt-4o-mini";
+    public string GeminiApiKey = string.Empty;
+    public string GeminiModel = "gemini-2.5-flash";
+    public string SwuAiApiKey = string.Empty;
+    public string SwuAiUserId = string.Empty;
+    public string SwuAiModel = "google/gemini-2.5-flash";
+    public string AiGrammarPrompt = DefaultGrammarPrompt;
+
+    public const string DefaultGrammarPrompt =
+        "You are an English grammar assistant for a video game chat. "
+        + "Correct the grammar and spelling of the user's message while keeping its meaning, tone and casual style. "
+        + "Reply with ONLY the corrected message - no quotes, no explanations, no extra text. "
+        + "If the message is already correct, reply with the original message unchanged.";
+
     // Webinterface
     public bool WebinterfaceEnabled;
     public bool WebinterfaceAutoStart;
@@ -206,6 +224,16 @@ public class Configuration : IPluginConfiguration
         ChosenStyle = other.ChosenStyle;
         ChatTabForward = other.ChatTabForward;
         ChatTabBackward = other.ChatTabBackward;
+        AiEnabled = other.AiEnabled;
+        AiProvider = other.AiProvider;
+        OpenAiApiKey = other.OpenAiApiKey;
+        OpenAiModel = other.OpenAiModel;
+        GeminiApiKey = other.GeminiApiKey;
+        GeminiModel = other.GeminiModel;
+        SwuAiApiKey = other.SwuAiApiKey;
+        SwuAiUserId = other.SwuAiUserId;
+        SwuAiModel = other.SwuAiModel;
+        AiGrammarPrompt = other.AiGrammarPrompt;
         WebinterfaceEnabled = other.WebinterfaceEnabled;
         WebinterfaceAutoStart = other.WebinterfaceAutoStart;
         WebinterfacePassword = other.WebinterfacePassword;

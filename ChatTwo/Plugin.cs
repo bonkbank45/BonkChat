@@ -57,6 +57,7 @@ public sealed class Plugin : IDalamudPlugin
     public DebuggerWindow DebuggerWindow { get; }
 
     public Commands Commands { get; }
+    public Ai.AiManager AiManager { get; }
     public GameFunctions.GameFunctions Functions { get; }
     public MessageManager MessageManager { get; }
     public IpcManager Ipc { get; }
@@ -129,6 +130,7 @@ public sealed class Plugin : IDalamudPlugin
             ServerCore = new ServerCore(this);
 
             Commands = new Commands();
+            AiManager = new Ai.AiManager();
             Functions = new GameFunctions.GameFunctions(this);
             Ipc = new IpcManager();
             TypingIpc = new TypingIpc(this);

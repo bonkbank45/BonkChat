@@ -405,9 +405,16 @@ public partial class ChatLog : Window, IChatWindow
 
         var buttonWidth = ImGuiUtil.CalcIconButtonSize().X;
         var showNovice = Plugin.Config.ShowNoviceNetwork && GameFunctions.GameFunctions.IsMentor();
-        var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0);
+        var showAi = Plugin.Config.AiEnabled;
+        var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0) + (showAi ? 1 : 0);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - ImGui.GetStyle().ItemSpacing.X * buttonsRight;
         InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
+
+        if (showAi)
+        {
+            ImGui.SameLine();
+            DrawAiButton();
+        }
 
         ImGui.SameLine();
 
@@ -431,6 +438,28 @@ public partial class ChatLog : Window, IChatWindow
 
         if (ImGuiUtil.IconButton(FontAwesomeIcon.Leaf))
             GameFunctions.GameFunctions.ClickNoviceNetworkButton();
+    }
+
+    private void DrawAiButton()
+    {
+        var busy = Plugin.AiManager.Busy;
+        using (ImRaii.Disabled(busy))
+        {
+            if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.SpellCheck, "ai-correct"))
+                Plugin.AiManager.CorrectInput(InputHandler);
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            var tooltip = "Correct grammar with AI";
+            if (Plugin.AiManager.LastOriginalInput != null)
+                tooltip += "\nRight click: restore the original message";
+
+            ImGuiUtil.Tooltip(tooltip);
+        }
+
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+            Plugin.AiManager.RevertInput(InputHandler);
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()
