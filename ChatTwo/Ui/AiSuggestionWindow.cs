@@ -124,7 +124,7 @@ public class AiSuggestionWindow : Window
 
             using (ImRaii.Disabled(Plugin.AiManager.Busy))
             {
-                foreach (var style in AiStyle.All())
+                foreach (var style in AiStyle.All(handler.MainWindow.CurrentTab.RoleplayMode))
                 {
                     ImGui.SameLine();
                     if (ImGui.SmallButton($"{style.Name}##ai-restyle-{style.Name}"))

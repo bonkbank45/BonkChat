@@ -540,7 +540,7 @@ public partial class ChatLog : Window, IChatWindow
                 ImGui.TextDisabled("Rewrite as...");
                 using (ImRaii.Disabled(busy || string.IsNullOrWhiteSpace(handler.ChatInput)))
                 {
-                    foreach (var style in AiStyle.All())
+                    foreach (var style in AiStyle.All(handler.MainWindow.CurrentTab.RoleplayMode))
                         if (ImGui.Selectable(style.Name))
                             Plugin.AiManager.RequestSuggestion(handler, AiMode.Rewrite, style);
                 }

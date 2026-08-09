@@ -22,6 +22,14 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.51.0**
+  - The quick rewrite buttons now depend on the mode. Roleplay mode
+    offers Rephrase / Longer / Shorter / Bolder instead of politeness
+    settings that mean nothing in the middle of a scene
+  - Normal chat keeps Politer / Friendlier / Shorter and gains Rephrase
+  - Longer and Bolder still may not invent actions or dialogue
+  - Your custom styles keep appearing in both modes
+
   **BonkChat 1.50.1**
   - Fixed roleplay replies losing their *asterisks*: the output format
     rule said "no quotes", which models read as permission to strip the

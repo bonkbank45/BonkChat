@@ -16,17 +16,36 @@ public enum AiMode
 /// </summary>
 public readonly record struct AiStyle(string Name, string Instruction)
 {
+    private const string Rephrase =
+        "Rewrite this differently: keep the same meaning and tone, but change the wording and sentence structure.";
+
     public static readonly AiStyle[] BuiltIn =
     [
+        new("Rephrase", Rephrase),
         new("Politer", "Rewrite the message to be more polite and courteous, suitable for talking to strangers in an online game."),
         new("Friendlier", "Rewrite the message to be warmer, more friendly and casual, like chatting with close friends in an online game."),
         new("Shorter", "Rewrite the message to be as short and concise as possible while keeping its meaning and tone."),
     ];
 
-    /// <summary> Built-in styles followed by the user's own. </summary>
-    public static IEnumerable<AiStyle> All()
+    /// <summary>
+    /// Politeness and friendliness mean nothing in the middle of a scene, so
+    /// roleplay mode offers the adjustments that actually come up there:
+    /// another take, length, and intensity.
+    /// </summary>
+    public static readonly AiStyle[] RoleplayBuiltIn =
+    [
+        new("Rephrase", Rephrase),
+        new("Longer", "Expand this with more sensory description of what is already happening, keeping the same tone. "
+                      + "Do not introduce new actions, thoughts or dialogue."),
+        new("Shorter", "Condense this to its essentials while keeping the tone and the imagery that matters most."),
+        new("Bolder", "Make the wording more direct and intense, using blunter vocabulary. "
+                      + "Do not introduce new actions, thoughts or dialogue."),
+    ];
+
+    /// <summary> Built-in styles for the mode, followed by the user's own. </summary>
+    public static IEnumerable<AiStyle> All(bool roleplay = false)
     {
-        foreach (var style in BuiltIn)
+        foreach (var style in roleplay ? RoleplayBuiltIn : BuiltIn)
             yield return style;
 
         foreach (var custom in Plugin.Config.AiCustomStyles)
