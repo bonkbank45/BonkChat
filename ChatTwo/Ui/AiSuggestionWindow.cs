@@ -116,19 +116,28 @@ public class AiSuggestionWindow : Window
         if (ImGui.Button("Dismiss##ai-dismiss"))
             Plugin.AiManager.DismissSuggestion();
 
-        // Chain a tone rewrite on top of the current suggestion.
+        // Chain a rewrite on top of the current suggestion. The buttons wrap
+        // onto another line when they run out of room: the panel has no
+        // scrollbar, so anything overflowing would simply be unreachable, and
+        // custom styles make the row as long as the user wants.
         if (suggestion.Mode != AiMode.Explain)
         {
+            var style = ImGui.GetStyle();
+            var rightEdge = ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X;
+
             ImGui.SameLine();
             ImGui.TextDisabled("|");
 
             using (ImRaii.Disabled(Plugin.AiManager.Busy))
             {
-                foreach (var style in AiStyle.All(handler.MainWindow.CurrentTab.RoleplayMode))
+                foreach (var rewrite in AiStyle.All(handler.MainWindow.CurrentTab.RoleplayMode))
                 {
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton($"{style.Name}##ai-restyle-{style.Name}"))
-                        Plugin.AiManager.RequestRestyle(handler, style);
+                    var width = ImGui.CalcTextSize(rewrite.Name).X + style.FramePadding.X * 2;
+                    if (ImGui.GetItemRectMax().X + style.ItemSpacing.X + width < rightEdge)
+                        ImGui.SameLine();
+
+                    if (ImGui.SmallButton($"{rewrite.Name}##ai-restyle-{rewrite.Name}"))
+                        Plugin.AiManager.RequestRestyle(handler, rewrite);
                 }
             }
         }

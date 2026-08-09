@@ -22,6 +22,13 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.51.1**
+  - The rewrite buttons wrap onto another line instead of running off the
+    panel, which had no scrollbar to reach them with. Adding custom
+    styles or using a narrow chat window could hide them entirely
+  - Fixed a rewrite silently doing nothing when the input box had been
+    edited after the suggestion appeared
+
   **BonkChat 1.51.0**
   - The quick rewrite buttons now depend on the mode. Roleplay mode
     offers Rephrase / Longer / Shorter / Bolder instead of politeness

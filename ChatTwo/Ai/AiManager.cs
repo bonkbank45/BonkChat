@@ -295,10 +295,10 @@ public class AiManager : IDisposable
         if (!Plugin.Config.AiEnabled || Busy || Suggestion is not { } current || current.Mode == AiMode.Explain)
             return;
 
-        RunSuggestionRequest(handler, AiMode.Rewrite, style, current.Corrected, current.Prefix, current.OriginalInput);
+        RunSuggestionRequest(handler, AiMode.Rewrite, style, current.Corrected, current.Prefix, current.OriginalInput, current);
     }
 
-    private void RunSuggestionRequest(InputHandler handler, AiMode mode, AiStyle? style, string text, string prefix, string originalInput)
+    private void RunSuggestionRequest(InputHandler handler, AiMode mode, AiStyle? style, string text, string prefix, string originalInput, AiSuggestion? replacing = null)
     {
         // The scene follows the window's own tab, which is not the main
         // window's current tab when typing in a pop-out. The roleplay block is
@@ -331,9 +331,15 @@ public class AiManager : IDisposable
 
                 await Plugin.Framework.RunOnFrameworkThread(() =>
                 {
-                    // Don't show a stale suggestion if the user changed the
-                    // input while the request was running.
-                    if (handler.ChatInput == originalInput)
+                    // Don't show a stale result. A rewrite replaces the panel's
+                    // suggestion, so it only has to still be the one we started
+                    // from; editing the input box in the meantime is fine. A
+                    // fresh request instead belongs to the text that was typed.
+                    var stillCurrent = replacing != null
+                        ? ReferenceEquals(Suggestion, replacing)
+                        : handler.ChatInput == originalInput;
+
+                    if (stillCurrent)
                         Suggestion = suggestion;
                 });
             }
