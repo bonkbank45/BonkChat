@@ -427,13 +427,13 @@ public unsafe class KeybindManager : IDisposable {
         if (ConfigKeybindPressed(source, Plugin.Config.AiGrammarKeybind))
         {
             Plugin.KeyState[Plugin.Config.AiGrammarKeybind!.Key] = false;
-            Plugin.AiManager.RequestSuggestion(Plugin.ChatLog.InputHandler, Ai.AiMode.Grammar);
+            Plugin.AiManager.RequestSuggestion(Plugin.ActiveInputHandler, Ai.AiMode.Grammar);
             return;
         }
         if (ConfigKeybindPressed(source, Plugin.Config.AiTranslateKeybind))
         {
             Plugin.KeyState[Plugin.Config.AiTranslateKeybind!.Key] = false;
-            Plugin.AiManager.RequestSuggestion(Plugin.ChatLog.InputHandler, Ai.AiMode.Translate);
+            Plugin.AiManager.RequestSuggestion(Plugin.ActiveInputHandler, Ai.AiMode.Translate);
             return;
         }
 

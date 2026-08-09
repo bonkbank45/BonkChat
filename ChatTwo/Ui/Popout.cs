@@ -29,6 +29,7 @@ public class Popout : Window, IChatWindow
     public Vector2 LastWindowPos { get; set; } = Vector2.Zero;
     public Vector2 LastWindowSize { get; set; } = Vector2.Zero;
     public HideState CurrentHideState { get; set; } = HideState.None;
+    public Tab CurrentTab => Tab;
 
     public Popout(Plugin plugin, Tab tab, int idx) : base($"{tab.Name}##popout")
     {
@@ -151,8 +152,19 @@ public class Popout : Window, IChatWindow
 
         ImGui.SameLine();
 
+        var showAi = Plugin.Config.AiEnabled;
+        var inputWidth = ImGui.GetContentRegionAvail().X;
+        if (showAi)
+            inputWidth -= (ImGuiUtil.CalcIconButtonSize().X + ImGui.GetStyle().ItemSpacing.X) * 2;
+
         var tellSpecial = false;
-        InputHandler.DrawInputArea(Tab, ImGui.GetContentRegionAvail().X, ref tellSpecial);
+        InputHandler.DrawInputArea(Tab, inputWidth, ref tellSpecial);
+
+        if (showAi)
+        {
+            ImGui.SameLine();
+            Plugin.ChatLog.DrawAiButtons(InputHandler);
+        }
     }
 
     public override void PostDraw()
@@ -165,6 +177,14 @@ public class Popout : Window, IChatWindow
 
     public override void OnClose()
     {
+        // Hand the AI features back to the main window, and drop a suggestion
+        // that belonged to the input box going away with us.
+        if (ReferenceEquals(Plugin.ActiveInputHandler, InputHandler))
+        {
+            Plugin.ActiveInputHandler = Plugin.ChatLog.InputHandler;
+            Plugin.AiManager.DismissSuggestion();
+        }
+
         Plugin.ChatLog.PopOutWindows.Remove(Tab.Identifier);
         Plugin.WindowSystem.RemoveWindow(this);
 

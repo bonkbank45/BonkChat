@@ -31,15 +31,21 @@ public class AiSuggestionWindow : Window
         IsOpen = true;
     }
 
+    /// <summary> The window owning the input box the panel belongs to. </summary>
+    private IChatWindow Anchor => Plugin.ActiveInputHandler.MainWindow;
+
     public override bool DrawConditions()
     {
-        return Plugin.Config.AiEnabled && Plugin.AiManager.Suggestion != null && !Plugin.ChatLog.IsHidden;
+        return Plugin.Config.AiEnabled
+               && Plugin.AiManager.Suggestion != null
+               && !Plugin.ChatLog.IsHidden
+               && Anchor.LastWindowSize != Vector2.Zero;
     }
 
     public override void PreDraw()
     {
-        var pos = Plugin.ChatLog.LastWindowPos;
-        var size = Plugin.ChatLog.LastWindowSize;
+        var pos = Anchor.LastWindowPos;
+        var size = Anchor.LastWindowSize;
 
         Size = size with { Y = PanelHeight };
         Position = pos with { Y = pos.Y - PanelHeight };
@@ -54,7 +60,7 @@ public class AiSuggestionWindow : Window
         if (Plugin.AiManager.Suggestion is not { } suggestion)
             return;
 
-        var handler = Plugin.ChatLog.InputHandler;
+        var handler = Plugin.ActiveInputHandler;
 
         // The suggestion is stale once the input was sent or cleared, except
         // for explanations of received messages, which don't touch the input.

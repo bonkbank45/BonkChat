@@ -22,6 +22,12 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.49.1**
+  - Pop-out tab windows now have the AI buttons, and Ctrl+G / Ctrl+T act
+    on the input box you are actually typing in
+  - The suggestion panel appears above that window instead of the main one
+  - A pop-out uses its own tab's scene context, not the main window's tab
+
   **BonkChat 1.49.0**
   - Right click a player name -> "Create a tab for this player" makes a
     tab holding only your conversation with them, and switches to it

@@ -45,6 +45,7 @@ public partial class ChatLog : Window, IChatWindow
 
     public Vector2 LastWindowPos { get; set; } = Vector2.Zero;
     public Vector2 LastWindowSize { get; set; } = Vector2.Zero;
+    public Tab CurrentTab => Plugin.CurrentTab;
 
     public readonly List<bool> PopOutDocked = [];
     public readonly HashSet<Guid> PopOutWindows = [];
@@ -474,7 +475,7 @@ public partial class ChatLog : Window, IChatWindow
         if (showAi)
         {
             ImGui.SameLine();
-            DrawAiButtons();
+            DrawAiButtons(InputHandler);
         }
 
         ImGui.SameLine();
@@ -501,31 +502,37 @@ public partial class ChatLog : Window, IChatWindow
             GameFunctions.GameFunctions.ClickNoviceNetworkButton();
     }
 
-    private void DrawAiButtons()
+    /// <summary>
+    /// The AI buttons for a chat input. Takes the handler so pop-out windows
+    /// can draw them for their own input box instead of the main one.
+    /// </summary>
+    public void DrawAiButtons(InputHandler handler)
     {
         var busy = Plugin.AiManager.Busy;
+        var menuId = $"ai-rewrite-menu-{handler.InputHandlerId}";
+
         using (ImRaii.Disabled(busy))
         {
-            if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.SpellCheck, "ai-correct"))
-                Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Grammar);
+            if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.SpellCheck, $"ai-correct-{handler.InputHandlerId}"))
+                Plugin.AiManager.RequestSuggestion(handler, AiMode.Grammar);
         }
 
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip("Correct grammar with AI\nRight click: rewrite styles");
 
         if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-            ImGui.OpenPopup("ai-rewrite-menu");
+            ImGui.OpenPopup(menuId);
 
-        using (var popup = ImRaii.Popup("ai-rewrite-menu"))
+        using (var popup = ImRaii.Popup(menuId))
         {
             if (popup)
             {
                 ImGui.TextDisabled("Rewrite as...");
-                using (ImRaii.Disabled(busy || string.IsNullOrWhiteSpace(InputHandler.ChatInput)))
+                using (ImRaii.Disabled(busy || string.IsNullOrWhiteSpace(handler.ChatInput)))
                 {
                     foreach (var style in AiStyle.All())
                         if (ImGui.Selectable(style.Name))
-                            Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Rewrite, style);
+                            Plugin.AiManager.RequestSuggestion(handler, AiMode.Rewrite, style);
                 }
 
                 ImGui.Separator();
@@ -533,7 +540,7 @@ public partial class ChatLog : Window, IChatWindow
                 using (ImRaii.Disabled(Plugin.AiManager.LastOriginalInput == null))
                 {
                     if (ImGui.Selectable("Restore original"))
-                        Plugin.AiManager.RevertInput(InputHandler);
+                        Plugin.AiManager.RevertInput(handler);
                 }
             }
         }
@@ -542,8 +549,8 @@ public partial class ChatLog : Window, IChatWindow
 
         using (ImRaii.Disabled(busy))
         {
-            if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.Language, "ai-translate"))
-                Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Translate);
+            if (ImGuiUtil.IconButton(busy ? FontAwesomeIcon.Spinner : FontAwesomeIcon.Language, $"ai-translate-{handler.InputHandlerId}"))
+                Plugin.AiManager.RequestSuggestion(handler, AiMode.Translate);
         }
 
         if (ImGui.IsItemHovered())

@@ -278,7 +278,9 @@ public class AiManager : IDisposable
 
     private void RunSuggestionRequest(InputHandler handler, AiMode mode, AiStyle? style, string text, string prefix, string originalInput)
     {
-        var tabId = Plugin.CurrentTab.Identifier;
+        // The scene follows the window's own tab, which is not the main
+        // window's current tab when typing in a pop-out.
+        var tabId = handler.MainWindow.CurrentTab.Identifier;
 
         Busy = true;
         Task.Run(async () =>
@@ -330,12 +332,10 @@ public class AiManager : IDisposable
     /// Translates a received message into Thai and shows it in the panel.
     /// Nothing gets applied to the input; the panel is informational only.
     /// </summary>
-    public void RequestExplanation(string messageText)
+    public void RequestExplanation(string messageText, Guid tabId)
     {
         if (!Plugin.Config.AiEnabled || Busy || string.IsNullOrWhiteSpace(messageText))
             return;
-
-        var tabId = Plugin.CurrentTab.Identifier;
 
         Busy = true;
         Task.Run(async () =>

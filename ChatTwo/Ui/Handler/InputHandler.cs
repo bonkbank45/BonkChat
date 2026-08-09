@@ -103,6 +103,12 @@ public class InputHandler
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
 
+            // Claim the AI features for this input box while it has focus, and
+            // keep them here afterwards so applying a suggestion still targets
+            // the box the text came from.
+            if (InputFocused)
+                Plugin.ActiveInputHandler = this;
+
             var tooltipDraw = Plugin.Config.PreviewPosition is PreviewPosition.Tooltip && Plugin.InputPreview.IsDrawable;
             if (tooltipDraw && ImGui.IsItemHovered())
             {

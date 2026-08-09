@@ -172,7 +172,7 @@ public sealed class PayloadHandler
             }
 
             if (Plugin.Config.AiEnabled && ImGui.Selectable("AI: Translate to Thai"))
-                InputHandler.Plugin.AiManager.RequestExplanation(StringifyMessage(message));
+                InputHandler.Plugin.AiManager.RequestExplanation(StringifyMessage(message), InputHandler.MainWindow.CurrentTab.Identifier);
 
             using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int) ImGuiCol.TextDisabled]);
             ImGui.TextUnformatted(message.Code.Type.Name());

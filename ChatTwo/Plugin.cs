@@ -74,6 +74,13 @@ public sealed class Plugin : IDalamudPlugin
 
     public Vector4 DefaultText = Vector4.Zero;
 
+    /// <summary>
+    /// The chat input the user last typed in, which may belong to a pop-out
+    /// window. AI keybinds and the suggestion panel follow this so they act on
+    /// the box being used rather than always the main window's.
+    /// </summary>
+    public Ui.Handler.InputHandler ActiveInputHandler { get; set; } = null!;
+
     // Tab management needs to happen outside the chatlog window class for access reasons
     public int LastTab { get; set; }
     public int? WantedTab { get; set; }
@@ -184,6 +191,7 @@ public sealed class Plugin : IDalamudPlugin
             MessageManager = new MessageManager(this); // Does it require UI?
 
             ChatLog = new ChatLog(this);
+            ActiveInputHandler = ChatLog.InputHandler;
             SettingsWindow = new SettingsWindow(this);
             DbViewer = new DbViewer(this);
             InputPreview = new InputPreview(ChatLog.InputHandler);
