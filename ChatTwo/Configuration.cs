@@ -279,6 +279,11 @@ public class Configuration : IPluginConfiguration
         "You are an English teacher helping a Thai player chat in an online game. {style} "
         + "If the message is in Thai, translate it into English with that tone.";
 
+    // Tab bar colour. The active tab's colour is also what ImGui draws the
+    // line under the tab bar with, so one accent covers both.
+    public bool TabBarColorEnabled;
+    public Vector4 TabBarColor = new(0.26f, 0.59f, 0.98f, 0.86f);
+
     // Background image
     public string BackgroundImagePath = string.Empty;
     public float BackgroundImageOpacity = 50f; // percent
@@ -393,6 +398,8 @@ public class Configuration : IPluginConfiguration
         AiCustomStyles = other.AiCustomStyles.Select(style => style.Clone()).ToList();
         AiMonthlyBudgetThb = other.AiMonthlyBudgetThb;
         AiUsdToThb = other.AiUsdToThb;
+        TabBarColorEnabled = other.TabBarColorEnabled;
+        TabBarColor = other.TabBarColor;
         BackgroundImagePath = other.BackgroundImagePath;
         BackgroundImageOpacity = other.BackgroundImageOpacity;
         BackgroundImageFitMode = other.BackgroundImageFitMode;

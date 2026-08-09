@@ -22,6 +22,13 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.53.0**
+  - Pick your own colour for the chat tabs, in Display settings. The same
+    colour draws the line under the tab bar, and the hover and inactive
+    states are shaded from it, so one picker covers the whole bar
+  - Works for the sidebar tab layout as well
+  - The alpha slider lets the tabs blend into the window
+
   **BonkChat 1.52.0**
   - Roleplay settings gain a Detail level, separate from Tone: Tone picks
     the words, Detail decides how much text there is at all

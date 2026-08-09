@@ -116,6 +116,19 @@ public sealed class Display : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
+        ImGuiUtil.OptionCheckbox(ref Mutable.TabBarColorEnabled, "Custom tab colour",
+            "Colours the chat tabs and the line underneath them. The other tab states are shaded from the same colour.");
+        if (Mutable.TabBarColorEnabled)
+        {
+            using var indent = ImRaii.PushIndent();
+            ImGui.ColorEdit4("Tab colour##tab-bar-colour", ref Mutable.TabBarColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar);
+            ImGuiUtil.HelpText("The alpha slider makes the tabs blend into the window.");
+        }
+        ImGui.Spacing();
+
+        ImGui.Separator();
+        ImGui.Spacing();
+
         ImGui.TextUnformatted("Background image");
         ImGuiUtil.HelpText("Shows an image behind the chat window. Press Save to apply.");
         ImGui.Spacing();

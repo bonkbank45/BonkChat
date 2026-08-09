@@ -430,10 +430,13 @@ public partial class ChatLog : Window, IChatWindow
         if (IsChatMode && Plugin.InputPreview.IsDrawable)
             Plugin.InputPreview.CalculatePreview();
 
-        if (Plugin.Config.SidebarTabView)
-            DrawTabSidebar();
-        else
-            DrawTabBar();
+        using (PushTabColors())
+        {
+            if (Plugin.Config.SidebarTabView)
+                DrawTabSidebar();
+            else
+                DrawTabBar();
+        }
 
         var activeTab = Plugin.CurrentTab;
 
@@ -1081,6 +1084,34 @@ public partial class ChatLog : Window, IChatWindow
         {
             Plugin.Log.Warning(ex, "Error drawing chat log");
         }
+    }
+
+    /// <summary>
+    /// Recolours the tab bar from a single accent colour. The active tab's
+    /// colour is also what ImGui draws the line under the tab bar with, and
+    /// the remaining states are shaded from the same colour so one picker is
+    /// enough. Pushes nothing while the option is off.
+    /// </summary>
+    private static ImRaii.ColorDisposable PushTabColors()
+    {
+        var on = Plugin.Config.TabBarColorEnabled;
+        var accent = Plugin.Config.TabBarColor;
+
+        static Vector4 Shade(Vector4 colour, float factor) => new(
+            Math.Clamp(colour.X * factor, 0f, 1f),
+            Math.Clamp(colour.Y * factor, 0f, 1f),
+            Math.Clamp(colour.Z * factor, 0f, 1f),
+            colour.W);
+
+        return ImRaii.PushColor(ImGuiCol.Tab, Shade(accent, 0.55f), on)
+            .Push(ImGuiCol.TabHovered, Shade(accent, 1.30f), on)
+            .Push(ImGuiCol.TabActive, accent, on)
+            .Push(ImGuiCol.TabUnfocused, Shade(accent, 0.40f), on)
+            .Push(ImGuiCol.TabUnfocusedActive, Shade(accent, 0.80f), on)
+            // The sidebar tab view uses selectables instead of a tab bar.
+            .Push(ImGuiCol.Header, Shade(accent, 0.75f), on)
+            .Push(ImGuiCol.HeaderHovered, Shade(accent, 1.10f), on)
+            .Push(ImGuiCol.HeaderActive, accent, on);
     }
 
     private void DrawTabBar()
