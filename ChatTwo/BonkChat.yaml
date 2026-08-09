@@ -22,6 +22,12 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.49.0**
+  - Right click a player name -> "Create a tab for this player" makes a
+    tab holding only your conversation with them, and switches to it
+  - Keeps the AI scene context clean: the context follows the tab, so a
+    dedicated tab means no bystanders in your translations
+
   **BonkChat 1.48.0 - Context, Custom Styles and the Usage Meter**
   - Translations now see the recent conversation, so pronouns, tense and
     writing style stay consistent instead of being guessed per message

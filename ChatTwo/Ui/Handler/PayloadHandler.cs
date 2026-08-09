@@ -488,6 +488,33 @@ public sealed class PayloadHandler
             ImGui.SetClipboardText(item.Name.ToString());
     }
 
+    /// <summary>
+    /// Switches to this player's own tab, creating it if needed. Existing
+    /// history is filtered in from the database, but the AI scene starts
+    /// empty so an old backlog never lands in a paid request.
+    /// </summary>
+    private void CreateTellTab(TellTarget target)
+    {
+        if (!target.IsSet())
+        {
+            WrapperUtil.AddNotification("Can't create a tab for this player", NotificationType.Error);
+            return;
+        }
+
+        var index = Plugin.Config.Tabs.FindIndex(tab => tab.Channel == InputChannel.Tell && tab.TellTarget.CompareNames(target));
+        if (index == -1)
+        {
+            Plugin.Config.Tabs.Add(TabsUtil.TellTab(target));
+            index = Plugin.Config.Tabs.Count - 1;
+
+            InputHandler.Plugin.SaveConfig();
+            InputHandler.Plugin.MessageManager.FilterAllTabsAsync();
+            WrapperUtil.AddNotification($"Created a tab for {target.ToTargetString()}", NotificationType.Success);
+        }
+
+        InputHandler.Plugin.ChatLog.ChangeTab(index);
+    }
+
     private void DrawPlayerPopup(Chunk chunk, PlayerPayload player)
     {
         // Possible that GMs return a null payload
@@ -531,6 +558,9 @@ public sealed class PayloadHandler
 
             InputHandler.Activate = true;
         }
+
+        if (world.Value.IsPublic && ImGui.Selectable("Create a tab for this player"))
+            CreateTellTab(new TellTarget(player.PlayerName, world.RowId, chunk.Message?.ContentId ?? 0, TellReason.Reply));
 
         if (world.Value.IsPublic)
         {

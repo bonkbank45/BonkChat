@@ -1,10 +1,24 @@
 using ChatTwo.Code;
+using ChatTwo.GameFunctions.Types;
 using ChatTwo.Resources;
 
 namespace ChatTwo.Util;
 
 public static class TabsUtil
 {
+    /// <summary>
+    /// A tab holding only the conversation with one player. Besides keeping
+    /// the chat readable, this is what keeps an AI scene clean: the context
+    /// buffer follows the tab, so anything the tab shows ends up in it.
+    /// </summary>
+    public static Tab TellTab(TellTarget target) => new()
+    {
+        Name = target.Name,
+        Channel = InputChannel.Tell,
+        TellTarget = target,
+        SupportsInput = true,
+    };
+
     public static Dictionary<ChatType, (ChatSource, ChatSource)> AllChannels()
     {
         var channels = new Dictionary<ChatType, (ChatSource, ChatSource)>();
