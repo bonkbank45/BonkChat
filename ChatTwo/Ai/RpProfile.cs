@@ -18,6 +18,18 @@ public enum RpTone
     Explicit,
 }
 
+/// <summary>
+/// How much the AI may add on top of what was actually written. Separate from
+/// tone: tone picks the words, this decides how much text there is at all.
+/// </summary>
+[Serializable]
+public enum RpDetail
+{
+    Faithful,
+    Balanced,
+    Embellish,
+}
+
 public static class RpExt
 {
     public static string Subject(this RpPronoun pronoun) => pronoun switch
@@ -49,6 +61,31 @@ public static class RpExt
         RpTone.Neutral => "Plain description, no added colour.",
         RpTone.Sensual => "Evocative and sensory wording.",
         RpTone.Explicit => "Direct wording, no euphemisms.",
+        _ => string.Empty,
+    };
+
+    public static string Name(this RpDetail detail) => detail.ToString();
+
+    public static string Instruction(this RpDetail detail) => detail switch
+    {
+        RpDetail.Faithful =>
+            "Translate only what the message actually says. Do not add actions, sensations, reactions or narration "
+            + "that are not in it, and keep the result about as long as the original.",
+        RpDetail.Balanced =>
+            "Write flowing prose rather than a literal word-for-word translation, but never add actions, thoughts, "
+            + "dialogue or sensations that are not in the original. Keep the result close to the length of the original message.",
+        RpDetail.Embellish =>
+            "Write flowing prose rather than a literal word-for-word translation, and flesh the message out with sensory "
+            + "description of what is already happening, matching the length and level of detail of the previous messages. "
+            + "Do not introduce new actions or dialogue that change what happens.",
+        _ => string.Empty,
+    };
+
+    public static string Description(this RpDetail detail) => detail switch
+    {
+        RpDetail.Faithful => "Only what you wrote, nothing added.",
+        RpDetail.Balanced => "Smoother wording, same events and length.",
+        RpDetail.Embellish => "Fills your line out into fuller prose.",
         _ => string.Empty,
     };
 }
@@ -92,9 +129,7 @@ public static class RpProfile
                        + "and any speech in quotation marks stays in quotation marks.");
         builder.Append(" The names are for your reference only: refer to the characters by pronoun, "
                        + "and only write a name when the original message names someone.");
-        builder.Append(" Write flowing prose rather than a literal word-for-word translation.");
-        builder.Append(" Unless an instruction below says otherwise, match the length and level of detail of the previous messages.");
-        builder.Append(" Never invent actions, thoughts or dialogue that are not in the original.");
+        builder.Append(' ').Append(tab.RpDetail.Instruction());
         builder.Append(' ').Append(tab.RpTone.Instruction());
 
         var extra = tab.RpExtraInstruction.Trim();

@@ -22,6 +22,15 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.52.0**
+  - Roleplay settings gain a Detail level, separate from Tone: Tone picks
+    the words, Detail decides how much text there is at all
+  - Faithful translates only what you wrote, Balanced smooths the wording
+    without adding events, Embellish fills your line out into fuller
+    prose and follows the length of the previous messages
+  - Balanced is the new default, so a short Thai line no longer comes
+    back as a paragraph unless you ask for that
+
   **BonkChat 1.51.2**
   - Fixed the rewrite buttons returning the same sentence in roleplay
     mode: the prompt told the model to turn the message into roleplay

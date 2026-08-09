@@ -636,6 +636,24 @@ public partial class ChatLog : Window, IChatWindow
         ImGuiUtil.HelpText("Changes the wording, never what happens in the scene.");
         ImGui.Spacing();
 
+        ImGui.TextUnformatted("Detail");
+        foreach (var detail in Enum.GetValues<RpDetail>())
+        {
+            if (ImGui.RadioButton(detail.Name(), tab.RpDetail == detail))
+            {
+                tab.RpDetail = detail;
+                changed = true;
+            }
+
+            if (ImGui.IsItemHovered())
+                ImGuiUtil.Tooltip(detail.Description());
+
+            ImGui.SameLine();
+        }
+        ImGui.NewLine();
+        ImGuiUtil.HelpText("How much the AI may add on top of what you actually wrote.");
+        ImGui.Spacing();
+
         changed |= DrawPronoun("My character", ref tab.RpSelfPronoun);
         changed |= DrawPronoun("The other character", ref tab.RpPartnerPronoun);
         ImGuiUtil.HelpText("Fixed pronouns keep the AI from switching between he and she mid-scene.");

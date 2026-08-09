@@ -470,6 +470,7 @@ public class Tab
     public Ai.RpPronoun RpSelfPronoun = Ai.RpPronoun.They;
     public Ai.RpPronoun RpPartnerPronoun = Ai.RpPronoun.They;
     public Ai.RpTone RpTone = Ai.RpTone.Sensual;
+    public Ai.RpDetail RpDetail = Ai.RpDetail.Balanced;
     /// <summary> Empty means the character name is taken from the game. </summary>
     public string RpSelfName = string.Empty;
     /// <summary> Empty means the name is taken from this tab's tell target. </summary>
@@ -584,6 +585,7 @@ public class Tab
             RpSelfPronoun = RpSelfPronoun,
             RpPartnerPronoun = RpPartnerPronoun,
             RpTone = RpTone,
+            RpDetail = RpDetail,
             RpSelfName = RpSelfName,
             RpPartnerName = RpPartnerName,
             RpExtraInstruction = RpExtraInstruction,
