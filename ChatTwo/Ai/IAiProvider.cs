@@ -6,6 +6,7 @@ public enum AiProviderType
     OpenAi = 0,
     Gemini = 1,
     SwuAi = 2,
+    Grok = 3,
 }
 
 public static class AiProviderTypeExt
@@ -15,6 +16,7 @@ public static class AiProviderTypeExt
         AiProviderType.OpenAi => "ChatGPT (OpenAI)",
         AiProviderType.Gemini => "Gemini (Google)",
         AiProviderType.SwuAi => "SWU AI",
+        AiProviderType.Grok => "Grok (xAI)",
         _ => type.ToString(),
     };
 }

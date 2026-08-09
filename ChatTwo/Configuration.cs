@@ -141,6 +141,8 @@ public class Configuration : IPluginConfiguration
     public string SwuAiApiKey = string.Empty;
     public string SwuAiUserId = string.Empty;
     public string SwuAiModel = "google/gemini-2.5-flash";
+    public string GrokApiKey = string.Empty;
+    public string GrokModel = "grok-4.5";
     public string AiGrammarPrompt = DefaultGrammarPrompt;
     public string AiTranslatePrompt = DefaultTranslatePrompt;
     public string AiExplainPrompt = DefaultExplainPrompt;
@@ -286,6 +288,8 @@ public class Configuration : IPluginConfiguration
         GeminiApiKey = Ai.SecretUtil.Seal(other.GeminiApiKey);
         GeminiModel = other.GeminiModel;
         SwuAiApiKey = Ai.SecretUtil.Seal(other.SwuAiApiKey);
+        GrokApiKey = Ai.SecretUtil.Seal(other.GrokApiKey);
+        GrokModel = other.GrokModel;
         SwuAiUserId = other.SwuAiUserId;
         SwuAiModel = other.SwuAiModel;
         AiGrammarPrompt = other.AiGrammarPrompt;

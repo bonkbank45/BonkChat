@@ -16,6 +16,7 @@ public class AiManager : IDisposable
     private readonly OpenAiProvider OpenAi = new();
     private readonly GeminiProvider Gemini = new();
     private readonly SwuAiProvider SwuAi = new();
+    private readonly GrokProvider Grok = new();
 
     /// <summary> True while an AI request is in flight. </summary>
     public bool Busy { get; private set; }
@@ -38,6 +39,7 @@ public class AiManager : IDisposable
         AiProviderType.OpenAi => OpenAi,
         AiProviderType.Gemini => Gemini,
         AiProviderType.SwuAi => SwuAi,
+        AiProviderType.Grok => Grok,
         _ => OpenAi,
     };
 
@@ -74,6 +76,7 @@ public class AiManager : IDisposable
         AiProviderType.OpenAi => Plugin.Config.OpenAiModel,
         AiProviderType.Gemini => Plugin.Config.GeminiModel,
         AiProviderType.SwuAi => Plugin.Config.SwuAiModel,
+        AiProviderType.Grok => Plugin.Config.GrokModel,
         _ => string.Empty,
     };
 

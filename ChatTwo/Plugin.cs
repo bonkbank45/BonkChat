@@ -154,11 +154,14 @@ public sealed class Plugin : IDalamudPlugin
             var sealedOpenAi = Ai.SecretUtil.Seal(Config.OpenAiApiKey);
             var sealedGemini = Ai.SecretUtil.Seal(Config.GeminiApiKey);
             var sealedSwuAi = Ai.SecretUtil.Seal(Config.SwuAiApiKey);
-            if (sealedOpenAi != Config.OpenAiApiKey || sealedGemini != Config.GeminiApiKey || sealedSwuAi != Config.SwuAiApiKey)
+            var sealedGrok = Ai.SecretUtil.Seal(Config.GrokApiKey);
+            if (sealedOpenAi != Config.OpenAiApiKey || sealedGemini != Config.GeminiApiKey
+                || sealedSwuAi != Config.SwuAiApiKey || sealedGrok != Config.GrokApiKey)
             {
                 Config.OpenAiApiKey = sealedOpenAi;
                 Config.GeminiApiKey = sealedGemini;
                 Config.SwuAiApiKey = sealedSwuAi;
+                Config.GrokApiKey = sealedGrok;
                 SaveConfig();
             }
 

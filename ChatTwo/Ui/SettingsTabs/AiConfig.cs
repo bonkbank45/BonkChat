@@ -60,6 +60,19 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
                 TextInput("User ID##swu-user", ref Mutable.SwuAiUserId);
                 TextInput("Model##swu-model", ref Mutable.SwuAiModel);
                 break;
+            case AiProviderType.Grok:
+                ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, "Create an API key in the xAI console (console.x.ai).");
+                PasswordInput("API key##grok-key", ref Mutable.GrokApiKey);
+                TextInput("Model##grok-model", ref Mutable.GrokModel);
+                foreach (var model in GrokProvider.KnownModels)
+                {
+                    if (ImGui.SmallButton($"{model}##grok-pick-{model}"))
+                        Mutable.GrokModel = model;
+
+                    ImGui.SameLine();
+                }
+                ImGui.NewLine();
+                break;
         }
 
         ImGui.Spacing();
@@ -204,6 +217,9 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
                         break;
                     case AiProviderType.SwuAi:
                         Mutable.SwuAiModel = model;
+                        break;
+                    case AiProviderType.Grok:
+                        Mutable.GrokModel = model;
                         break;
                 }
             }
