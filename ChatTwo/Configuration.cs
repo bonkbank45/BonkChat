@@ -246,8 +246,12 @@ public class Configuration : IPluginConfiguration
         "You are helping a Thai player write roleplay in an online game. "
         + "Turn the user's message, written in Thai, English or a mix, into English roleplay prose.";
 
+    // "No quotes" used to be in here and fought the roleplay rule about
+    // keeping *asterisks* and "quotes": models read it as permission to strip
+    // the message's own formatting.
     public const string PlainFormatRule =
-        " Reply with ONLY the resulting text as plain text. No JSON, no notes, no quotes, no preamble.";
+        " Reply with ONLY the resulting message itself: no preamble, no notes, no explanation, no code fences."
+        + " Do not wrap the whole reply in quotation marks, but keep every punctuation and formatting character that belongs to the message.";
 
     // The editable prompts now describe the task only.
     public const string DefaultGrammarPrompt =

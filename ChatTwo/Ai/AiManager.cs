@@ -247,6 +247,7 @@ public class AiManager : IDisposable
         // hard guarantee on top of the prompt instruction: the game chat and
         // the panel font can't render them.
         corrected = StripEmoji(corrected.ReplaceLineEndings(" ")).Trim();
+        corrected = PreserveEmoteWrapping(text, corrected);
         explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
 
         StoreInCache(key, corrected, explanations);
@@ -467,6 +468,26 @@ public class AiManager : IDisposable
             // Plain-text reply (concise mode) or the model ignored the format.
             return (reply.Trim(), []);
         }
+    }
+
+    /// <summary>
+    /// Roleplay emotes are wrapped in asterisks, which models like to drop as
+    /// if they were markdown emphasis. If the original was wrapped and the
+    /// reply came back bare, put the wrapping back instead of trusting the
+    /// prompt to hold.
+    /// </summary>
+    public static string PreserveEmoteWrapping(string original, string result)
+    {
+        original = original.Trim();
+        result = result.Trim();
+
+        if (result.Length == 0 || result.Contains('*'))
+            return result;
+
+        if (original.Length < 2 || !original.StartsWith('*') || !original.EndsWith('*'))
+            return result;
+
+        return $"*{result}*";
     }
 
     /// <summary>

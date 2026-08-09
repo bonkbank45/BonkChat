@@ -29,11 +29,18 @@ public static class RpExt
 
     public static string Name(this RpTone tone) => tone.ToString();
 
+    // Each level builds on the one before it: picking Explicit used to drop
+    // the evocative wording that Sensual asks for, which made it read flatter
+    // than the level below it.
     public static string Instruction(this RpTone tone) => tone switch
     {
         RpTone.Neutral => "Keep the wording plain and descriptive.",
-        RpTone.Sensual => "Use warm, sensory, evocative wording; favour texture, heat and movement over plain description.",
-        RpTone.Explicit => "Use direct, explicit adult wording where the original implies it; do not soften it with euphemisms.",
+        RpTone.Sensual => "Use warm, sensory, evocative wording; favour texture, heat and movement over plain description. "
+                          + "Prefer vivid, specific verbs over generic ones.",
+        RpTone.Explicit => "Use warm, sensory, evocative wording; favour texture, heat and movement over plain description. "
+                           + "Prefer vivid, specific verbs over generic ones. "
+                           + "Be direct and explicit where the scene calls for it: use blunt, unambiguous adult vocabulary "
+                           + "rather than euphemism, and never fade to black.",
         _ => string.Empty,
     };
 
@@ -80,7 +87,9 @@ public static class RpProfile
         else
             builder.Append($" The other character is referred to as {tab.RpPartnerPronoun.Subject()}.");
 
-        builder.Append(" Keep the original *asterisks* and \"quotes\" exactly as they appear.");
+        builder.Append(" Asterisks and quotation marks are roleplay formatting, not markdown, so they must survive: "
+                       + "if the message is wrapped in asterisks then your reply must be wrapped in asterisks too, "
+                       + "and any speech in quotation marks stays in quotation marks.");
         builder.Append(" Write flowing prose rather than a literal word-for-word translation.");
         builder.Append(" Match the length and level of detail of the previous messages.");
         builder.Append(" Never invent actions, thoughts or dialogue that are not in the original.");

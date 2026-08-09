@@ -22,6 +22,15 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.50.1**
+  - Fixed roleplay replies losing their *asterisks*: the output format
+    rule said "no quotes", which models read as permission to strip the
+    message's own formatting
+  - Wrapping is now restored in code when the original was wrapped, so it
+    no longer depends on the model obeying the prompt
+  - Explicit tone now includes the evocative wording of Sensual instead
+    of replacing it, so it no longer reads flatter than the level below
+
   **BonkChat 1.50.0 - Roleplay Mode**
   - A theatre-masks button next to the AI buttons toggles roleplay mode
     for that tab; the channel line shows [RP] while it is on
