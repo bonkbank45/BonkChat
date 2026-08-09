@@ -108,11 +108,17 @@ public class AiManager : IDisposable
         StringBuilder prompt;
         if (roleplay)
         {
-            prompt = new StringBuilder(Configuration.RoleplayBasePrompt);
-            if (mode == AiMode.Rewrite && styleInstruction != null)
-                prompt.Append(' ').Append(styleInstruction);
+            prompt = new StringBuilder(mode == AiMode.Rewrite
+                ? Configuration.RoleplayRewriteBasePrompt
+                : Configuration.RoleplayBasePrompt);
 
             prompt.Append(rpInstruction);
+
+            // The requested change goes last so it outranks the standing
+            // rules it contradicts, such as matching the previous length.
+            if (mode == AiMode.Rewrite && styleInstruction != null)
+                prompt.Append(" Now apply this change, which overrides the guidance above wherever they disagree: ")
+                      .Append(styleInstruction);
         }
         else
         {
@@ -226,8 +232,12 @@ public class AiManager : IDisposable
 
         var systemPrompt = BuildSystemPrompt(mode, styleInstruction, context != null, rpInstruction);
 
-        var key = $"{Plugin.Config.AiProvider}{CurrentModel}{systemPrompt}{context}{text}";
-        if (TryGetCached(key, out var cached))
+        // Rewrites are the user asking for another take, so serving one from
+        // the cache would hand back the very text they want changed.
+        var useCache = mode != AiMode.Rewrite;
+
+        var key = $"{Plugin.Config.AiProvider}{CurrentModel}{systemPrompt}{context}{text}";
+        if (useCache && TryGetCached(key, out var cached))
             return cached;
 
         var response = await CurrentProvider.ChatAsync(new AiRequest
@@ -250,7 +260,9 @@ public class AiManager : IDisposable
         corrected = PreserveEmoteWrapping(text, corrected);
         explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
 
-        StoreInCache(key, corrected, explanations);
+        if (useCache)
+            StoreInCache(key, corrected, explanations);
+
         return (corrected, explanations);
     }
 

@@ -246,6 +246,14 @@ public class Configuration : IPluginConfiguration
         "You are helping a Thai player write roleplay in an online game. "
         + "Turn the user's message, written in Thai, English or a mix, into English roleplay prose.";
 
+    // Rewrites are fed prose that is already English, so the translate wording
+    // above makes the model decide there is nothing left to do and hand the
+    // text back unchanged.
+    public const string RoleplayRewriteBasePrompt =
+        "You are helping a Thai player write roleplay in an online game. "
+        + "Rewrite the message below as English roleplay prose; if any of it is in Thai, translate that part. "
+        + "The result must differ from the input.";
+
     // "No quotes" used to be in here and fought the roleplay rule about
     // keeping *asterisks* and "quotes": models read it as permission to strip
     // the message's own formatting.

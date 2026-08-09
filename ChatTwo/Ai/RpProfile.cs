@@ -90,8 +90,10 @@ public static class RpProfile
         builder.Append(" Asterisks and quotation marks are roleplay formatting, not markdown, so they must survive: "
                        + "if the message is wrapped in asterisks then your reply must be wrapped in asterisks too, "
                        + "and any speech in quotation marks stays in quotation marks.");
+        builder.Append(" The names are for your reference only: refer to the characters by pronoun, "
+                       + "and only write a name when the original message names someone.");
         builder.Append(" Write flowing prose rather than a literal word-for-word translation.");
-        builder.Append(" Match the length and level of detail of the previous messages.");
+        builder.Append(" Unless an instruction below says otherwise, match the length and level of detail of the previous messages.");
         builder.Append(" Never invent actions, thoughts or dialogue that are not in the original.");
         builder.Append(' ').Append(tab.RpTone.Instruction());
 

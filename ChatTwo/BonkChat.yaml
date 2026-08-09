@@ -22,6 +22,17 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.51.2**
+  - Fixed the rewrite buttons returning the same sentence in roleplay
+    mode: the prompt told the model to turn the message into roleplay
+    prose, which it already was, and the rule about matching the previous
+    length contradicted Longer and Shorter
+  - The requested change is now the last instruction, so it outranks the
+    standing rules it disagrees with
+  - Rephrase no longer replaces pronouns with your character name; the
+    names are marked as reference only
+  - Rewrites skip the response cache, so asking again always asks again
+
   **BonkChat 1.51.1**
   - The rewrite buttons wrap onto another line instead of running off the
     panel, which had no scrollbar to reach them with. Adding custom
