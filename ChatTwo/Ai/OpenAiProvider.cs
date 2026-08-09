@@ -9,28 +9,32 @@ public class OpenAiProvider : IAiProvider
 {
     private const string BaseUrl = "https://api.openai.com/v1";
 
-    public async Task<string> ChatAsync(string systemPrompt, string userText, CancellationToken token)
+    public async Task<AiResponse> ChatAsync(AiRequest request, CancellationToken token)
     {
         var apiKey = SecretUtil.Open(Plugin.Config.OpenAiApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("OpenAI API key is not set");
 
+        var messages = new JsonArray { new JsonObject { ["role"] = "system", ["content"] = request.SystemPrompt } };
+        if (!string.IsNullOrWhiteSpace(request.Context))
+            messages.Add(new JsonObject { ["role"] = "user", ["content"] = request.Context });
+        messages.Add(new JsonObject { ["role"] = "user", ["content"] = request.UserText });
+
         var body = new JsonObject
         {
             ["model"] = Plugin.Config.OpenAiModel,
-            ["messages"] = new JsonArray
-            {
-                new JsonObject { ["role"] = "system", ["content"] = systemPrompt },
-                new JsonObject { ["role"] = "user", ["content"] = userText },
-            },
+            ["messages"] = messages,
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
-        request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+        if (request.MaxOutputTokens > 0)
+            body["max_completion_tokens"] = request.MaxOutputTokens;
 
-        using var response = await AiUtil.HttpClient.SendAsync(request, token);
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/chat/completions");
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        httpRequest.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
+        httpRequest.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+
+        using var response = await AiUtil.HttpClient.SendAsync(httpRequest, token);
         var raw = await response.Content.ReadAsStringAsync(token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"OpenAI returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");
@@ -40,7 +44,15 @@ public class OpenAiProvider : IAiProvider
         if (string.IsNullOrWhiteSpace(content))
             throw new JsonException($"OpenAI response had no content: {AiUtil.Truncate(raw)}");
 
-        return content.Trim();
+        var usage = json?["usage"];
+        return new AiResponse
+        {
+            Text = content.Trim(),
+            InputTokens = usage?["prompt_tokens"]?.GetValue<int>() ?? 0,
+            OutputTokens = usage?["completion_tokens"]?.GetValue<int>() ?? 0,
+            CachedTokens = usage?["prompt_tokens_details"]?["cached_tokens"]?.GetValue<int>() ?? 0,
+            ReasoningTokens = usage?["completion_tokens_details"]?["reasoning_tokens"]?.GetValue<int>() ?? 0,
+        };
     }
 
     public async Task<List<string>> GetModelsAsync(CancellationToken token)

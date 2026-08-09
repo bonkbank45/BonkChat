@@ -281,6 +281,13 @@ public class MessageManager : IAsyncDisposable
         if ((!isBattle && !isCraftOrGather) || (isBattle && Plugin.Config.DatabaseBattleMessages) || (isCraftOrGather && Plugin.Config.DatabaseGatherCraftMessages))
             Store.UpsertMessage(message);
 
+        // Only real conversation feeds the AI context; battle spam and system
+        // notices would just cost tokens.
+        var forAiContext = Plugin.Config is { AiEnabled: true, AiContextEnabled: true }
+                           && (message.Code.IsPlayerMessage() || message.ExtraChatChannel != Guid.Empty)
+            ? (Sender: ChunkText(message.Sender), Content: ChunkText(message.Content))
+            : default;
+
         var currentTabId = Plugin.CurrentTab.Identifier;
         var currentMatches = Plugin.CurrentTab.Matches(message);
         foreach (var tab in Plugin.Config.Tabs)
@@ -291,10 +298,18 @@ public class MessageManager : IAsyncDisposable
             {
                 tab.AddMessage(message, unread);
 
+                if (forAiContext.Content is { Length: > 0 })
+                    Plugin.AiManager.Scenes.Append(tab.Identifier, forAiContext.Sender, forAiContext.Content);
+
                 if (tab.Identifier == currentTabId)
                     Plugin.ServerCore.SendNewMessage(message);
             }
         }
+    }
+
+    private static string ChunkText(IEnumerable<Chunk> chunks)
+    {
+        return string.Concat(chunks.OfType<TextChunk>().Select(chunk => chunk.Content)).Trim();
     }
 
     public class NameFormatting

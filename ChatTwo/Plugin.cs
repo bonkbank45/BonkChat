@@ -127,22 +127,22 @@ public sealed class Plugin : IDalamudPlugin
             // Upgrade saved AI prompts that still match an older default to
             // the current default, leaving user-customized prompts alone.
             var promptsUpgraded = false;
-            if (Config.AiGrammarPrompt is Configuration.LegacyGrammarPrompt or Configuration.LegacyGrammarPromptV2)
+            if (Config.AiGrammarPrompt is Configuration.LegacyGrammarPrompt or Configuration.LegacyGrammarPromptV2 or Configuration.LegacyGrammarPromptV3)
             {
                 Config.AiGrammarPrompt = Configuration.DefaultGrammarPrompt;
                 promptsUpgraded = true;
             }
-            if (Config.AiTranslatePrompt == Configuration.LegacyTranslatePromptV1)
+            if (Config.AiTranslatePrompt is Configuration.LegacyTranslatePromptV1 or Configuration.LegacyTranslatePromptV2)
             {
                 Config.AiTranslatePrompt = Configuration.DefaultTranslatePrompt;
                 promptsUpgraded = true;
             }
-            if (Config.AiExplainPrompt == Configuration.LegacyExplainPromptV1)
+            if (Config.AiExplainPrompt is Configuration.LegacyExplainPromptV1 or Configuration.LegacyExplainPromptV2)
             {
                 Config.AiExplainPrompt = Configuration.DefaultExplainPrompt;
                 promptsUpgraded = true;
             }
-            if (Config.AiRewritePrompt == Configuration.LegacyRewritePromptV1)
+            if (Config.AiRewritePrompt is Configuration.LegacyRewritePromptV1 or Configuration.LegacyRewritePromptV2)
             {
                 Config.AiRewritePrompt = Configuration.DefaultRewritePrompt;
                 promptsUpgraded = true;
@@ -174,7 +174,7 @@ public sealed class Plugin : IDalamudPlugin
             ServerCore = new ServerCore(this);
 
             Commands = new Commands();
-            AiManager = new Ai.AiManager();
+            AiManager = new Ai.AiManager(this);
             Functions = new GameFunctions.GameFunctions(this);
             Ipc = new IpcManager();
             TypingIpc = new TypingIpc(this);

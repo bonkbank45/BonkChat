@@ -70,7 +70,7 @@ public class AiSuggestionWindow : Window
         {
             AiMode.Grammar => "AI grammar suggestion:",
             AiMode.Translate => "AI translation:",
-            AiMode.Rewrite => $"AI rewrite ({(suggestion.Style ?? RewriteStyle.Politer).Name().ToLowerInvariant()}):",
+            AiMode.Rewrite => $"AI rewrite ({suggestion.StyleName?.ToLowerInvariant() ?? "custom"}):",
             _ => "AI translation to Thai:",
         };
         ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudViolet, header);
@@ -118,10 +118,10 @@ public class AiSuggestionWindow : Window
 
             using (ImRaii.Disabled(Plugin.AiManager.Busy))
             {
-                foreach (var style in Enum.GetValues<RewriteStyle>())
+                foreach (var style in AiStyle.All())
                 {
                     ImGui.SameLine();
-                    if (ImGui.SmallButton($"{style.Name()}##ai-restyle-{style}"))
+                    if (ImGui.SmallButton($"{style.Name}##ai-restyle-{style.Name}"))
                         Plugin.AiManager.RequestRestyle(handler, style);
                 }
             }

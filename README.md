@@ -20,6 +20,14 @@ based on Chat 2, with an AI portal for practicing English while you play.
 - **Message translation**: right click any received message →
   "AI: Translate to Thai" with slang and vocabulary explanations
 - Suggestion panel with apply/dismiss — you always review before sending
+- **Conversation context**: the recent scene is sent along with your request
+  so translations keep pronouns, tense and writing style consistent. The
+  transcript is append-only, which is what lets the provider serve most of it
+  from its cache instead of billing it at full price
+- **Custom rewrite styles**: add your own tones alongside the built-in ones
+- **Usage meter and monthly budget**: tracks real token counts reported by the
+  provider, shows what share came from cache, and pauses requests when your
+  budget is reached
 - Response cache, configurable prompts and keybinds, API keys stored
   encrypted (Windows DPAPI)
 

@@ -25,7 +25,7 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
         if (!Mutable.AiEnabled)
             return;
 
-        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudOrange, "Your message is sent to the selected AI service when you press the correction button. API keys are stored in the plugin configuration in plain text.");
+        ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudOrange, "Your message, and the recent conversation when context is enabled, is sent to the selected AI service. API keys are stored encrypted for your Windows user.");
         ImGui.Spacing();
 
         using (var combo = ImGuiUtil.BeginComboVertical("Provider", Mutable.AiProvider.Name()))
@@ -72,11 +72,45 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
                     ImGui.SameLine();
                 }
                 ImGui.NewLine();
+
+                if (GrokProvider.SupportsReasoningEffort(Mutable.GrokModel))
+                {
+                    ImGui.Spacing();
+                    using var combo = ImGuiUtil.BeginComboVertical("Reasoning effort", Mutable.GrokReasoningEffort);
+                    if (combo)
+                        foreach (var effort in new[] { "none", "low", "medium", "high" })
+                            if (ImGui.Selectable(effort, effort == Mutable.GrokReasoningEffort))
+                                Mutable.GrokReasoningEffort = effort;
+
+                    ImGuiUtil.HelpText("Reasoning tokens are billed as output. Translation does not need them, so \"none\" is both cheaper and faster.");
+                }
+                else
+                {
+                    ImGuiUtil.HelpText("Only grok-4.3 can turn reasoning off, which makes it noticeably cheaper for translation.");
+                }
                 break;
         }
 
         ImGui.Spacing();
         DrawModelList();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawContextSettings();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawUsageMeter();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawCustomStyles();
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -164,6 +198,136 @@ public sealed class AiConfig(Plugin plugin, Configuration mutable) : ISettingsTa
                 });
             }
         }
+    }
+
+    private void DrawContextSettings()
+    {
+        ImGuiUtil.OptionCheckbox(ref Mutable.AiContextEnabled, "Use conversation context",
+            "Sends the recent conversation along with your request so the AI knows who is speaking, the situation and the writing style. Strongly improves roleplay translation.");
+
+        if (!Mutable.AiContextEnabled)
+            return;
+
+        using var indent = ImRaii.PushIndent();
+
+        ImGui.TextUnformatted("Use context for:");
+        ImGui.Checkbox("Translating incoming messages##ctx-explain", ref Mutable.AiContextForExplain);
+        ImGui.Checkbox("Thai to English##ctx-translate", ref Mutable.AiContextForTranslate);
+        ImGui.Checkbox("Rewrite styles##ctx-rewrite", ref Mutable.AiContextForRewrite);
+        ImGui.Checkbox("English grammar correction##ctx-grammar", ref Mutable.AiContextForGrammar);
+        ImGuiUtil.HelpText("Grammar correction only looks at your own sentence, so context is off by default to save tokens.");
+        ImGui.Spacing();
+
+        if (ImGuiUtil.InputIntVertical("Context budget (tokens)", "The scene is kept until it reaches this size, then restarts. Bigger means better continuity but a larger prompt.", ref Mutable.AiContextMaxTokens, 100, 500))
+            Mutable.AiContextMaxTokens = Math.Clamp(Mutable.AiContextMaxTokens, 200, 8000);
+        ImGui.Spacing();
+
+        if (ImGuiUtil.InputIntVertical("Forget the scene after (minutes)", "A pause longer than this starts a fresh scene.", ref Mutable.AiContextIdleMinutes))
+            Mutable.AiContextIdleMinutes = Math.Clamp(Mutable.AiContextIdleMinutes, 1, 120);
+        ImGui.Spacing();
+
+        if (ImGuiUtil.InputIntVertical("Skip context below (characters)", "Short messages like \"ty\" gain nothing from context, and stay cheap and cacheable without it.", ref Mutable.AiContextMinChars, 5, 20))
+            Mutable.AiContextMinChars = Math.Clamp(Mutable.AiContextMinChars, 0, 500);
+        ImGui.Spacing();
+
+        ImGuiUtil.OptionCheckbox(ref Mutable.AiExplanationsInReading, "Thai notes when reading messages",
+            "Adds vocabulary notes when translating incoming messages. Turning this off makes replies shorter and cheaper.");
+        ImGui.Spacing();
+
+        var scene = Plugin.AiManager.Scenes.Get(Plugin.CurrentTab.Identifier);
+        ImGui.TextUnformatted($"Current tab scene: {scene.LineCount} lines, ~{scene.TokenEstimate} tokens");
+        if (ImGui.Button("Clear scene context"))
+            Plugin.AiManager.Scenes.ResetAll();
+    }
+
+    private void DrawUsageMeter()
+    {
+        var usage = Plugin.AiManager.Usage;
+        usage.RollMonthIfNeeded();
+
+        ImGui.TextUnformatted("Usage");
+        ImGuiUtil.HelpText("Measured from the token counts the AI service reports, so this is what you actually spent, not an estimate of your typing.");
+        ImGui.Spacing();
+
+        var hasPricing = AiUsageTracker.TryGetPricing(AiManager.CurrentModel, out _);
+
+        ImGui.TextUnformatted($"This session: {usage.Requests} requests, {usage.SessionInput:N0} in / {usage.SessionOutput:N0} out tokens");
+        if (hasPricing)
+            ImGui.TextUnformatted($"This session cost: {usage.SessionCostThb:N2} THB");
+
+        if (usage.SessionInput > 0)
+        {
+            ImGuiUtil.WrappedTextWithColor(usage.CachedShare > 0 ? ImGuiColors.HealerGreen : ImGuiColors.DalamudGrey,
+                $"Served from cache: {usage.CachedShare * 100:N0}% of input tokens ({usage.SessionCached:N0})");
+            if (usage.SessionReasoning > 0)
+                ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudOrange,
+                    $"Spent on hidden reasoning: {usage.SessionReasoning:N0} output tokens (set reasoning effort to \"none\" to avoid this)");
+        }
+
+        ImGui.Spacing();
+        if (hasPricing)
+        {
+            ImGui.TextUnformatted($"This month: {usage.MonthCostThb:N2} of {Mutable.AiMonthlyBudgetThb:N0} THB");
+            var fraction = Mutable.AiMonthlyBudgetThb > 0 ? (float)(usage.MonthCostThb / Mutable.AiMonthlyBudgetThb) : 0f;
+            ImGui.ProgressBar(Math.Clamp(fraction, 0f, 1f), new System.Numerics.Vector2(-1, 0));
+        }
+        else
+        {
+            ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudGrey, $"No price list for \"{AiManager.CurrentModel}\", so only token counts are tracked.");
+        }
+
+        ImGui.Spacing();
+        if (ImGuiUtil.DragFloatVertical("Monthly budget (THB)", ref Mutable.AiMonthlyBudgetThb, 5f, 0f, 10000f, "%.0f"))
+            Mutable.AiMonthlyBudgetThb = Math.Clamp(Mutable.AiMonthlyBudgetThb, 0f, 10000f);
+        ImGuiUtil.HelpText("A warning appears at 80%. At 100% AI requests stop until you resume below. Set to 0 to disable the brake.");
+        ImGui.Spacing();
+
+        if (ImGuiUtil.DragFloatVertical("USD to THB rate", ref Mutable.AiUsdToThb, 0.5f, 1f, 200f, "%.1f"))
+            Mutable.AiUsdToThb = Math.Clamp(Mutable.AiUsdToThb, 1f, 200f);
+        ImGui.Spacing();
+
+        if (!usage.CanSpend())
+        {
+            ImGuiUtil.WrappedTextWithColor(ImGuiColors.DalamudRed, "Monthly budget reached. AI requests are paused.");
+            if (ImGui.Button("Resume anyway for this session"))
+                usage.BudgetOverridden = true;
+            ImGui.SameLine();
+        }
+
+        if (ImGui.Button("Reset session counter"))
+            usage.ResetSession();
+
+        ImGui.SameLine();
+        if (ImGuiUtil.CtrlShiftButton("Reset month", "Hold Ctrl and Shift to reset this month's total"))
+            usage.ResetMonth();
+    }
+
+    private void DrawCustomStyles()
+    {
+        ImGui.TextUnformatted("Custom rewrite styles");
+        ImGuiUtil.HelpText("Your own tones, shown next to Politer, Friendlier and Shorter in the right click menu and the suggestion panel.");
+        ImGui.Spacing();
+
+        AiCustomStyle? remove = null;
+        foreach (var (style, index) in Mutable.AiCustomStyles.Select((style, index) => (style, index)))
+        {
+            using var id = ImRaii.PushId($"ai-style-{index}");
+
+            ImGui.SetNextItemWidth(200f);
+            ImGui.InputTextWithHint("##name", "Name", ref style.Name, 64);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(Dalamud.Interface.FontAwesomeIcon.Trash, tooltip: "Remove this style"))
+                remove = style;
+
+            ImGui.InputTextWithHint("##instruction", "Instruction sent to the AI, e.g. \"Rewrite the message in a calm, formal tone.\"", ref style.Instruction, 1000);
+            ImGui.Spacing();
+        }
+
+        if (remove != null)
+            Mutable.AiCustomStyles.Remove(remove);
+
+        if (ImGui.Button("Add style"))
+            Mutable.AiCustomStyles.Add(new AiCustomStyle { Name = "New style", Instruction = "Rewrite the message " });
     }
 
     private void DrawModelList()

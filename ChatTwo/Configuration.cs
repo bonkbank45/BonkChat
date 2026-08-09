@@ -150,6 +150,32 @@ public class Configuration : IPluginConfiguration
     public ConfigKeyBind? AiGrammarKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.G };
     public ConfigKeyBind? AiTranslateKeybind = new() { Modifier = ModifierFlag.Ctrl, Key = VirtualKey.T };
 
+    // AI conversation context
+    public bool AiContextEnabled = true;
+    public bool AiContextForTranslate = true;
+    public bool AiContextForExplain = true;
+    public bool AiContextForRewrite = true;
+    public bool AiContextForGrammar; // own sentence only, no need to pay for context
+    public int AiContextMaxTokens = 1500;
+    public int AiContextIdleMinutes = 10;
+    public int AiContextMinChars = 40;
+    /// <summary> Teaching notes when reading incoming messages; off keeps replies short and cheap. </summary>
+    public bool AiExplanationsInReading;
+    public int AiMaxOutputTokens = 600;
+    /// <summary> Grok 4.3 only: none/low/medium/high. Reasoning is billed as output. </summary>
+    public string GrokReasoningEffort = "none";
+
+    public List<Ai.AiCustomStyle> AiCustomStyles = [];
+
+    // AI usage and budget
+    public string AiUsageMonth = string.Empty;
+    public double AiUsageMonthCostUsd;
+    public long AiUsageMonthInput;
+    public long AiUsageMonthOutput;
+    public bool AiBudgetWarned;
+    public float AiMonthlyBudgetThb = 150f;
+    public float AiUsdToThb = 35f;
+
     // The pre-1.41.0 default, kept so it can be upgraded in place on load.
     public const string LegacyGrammarPrompt =
         "You are an English grammar assistant for a video game chat. "
@@ -193,10 +219,46 @@ public class Configuration : IPluginConfiguration
         + "{\"corrected\":\"<the English message>\",\"explanations\":[\"<short note in Thai>\"]} "
         + "Explanations: up to 3 short Thai notes teaching vocabulary or phrasing used in the translation.";
 
-    public const string DefaultGrammarPrompt = LegacyGrammarPromptV2 + NoEmojiRule;
-    public const string DefaultRewritePrompt = LegacyRewritePromptV1 + NoEmojiRule;
-    public const string DefaultTranslatePrompt = LegacyTranslatePromptV1 + NoEmojiRule;
-    public const string DefaultExplainPrompt = LegacyExplainPromptV1 + " Do not use emoji in your reply.";
+    // Pre-1.48.0 defaults: the output format was baked into the prompt.
+    public const string LegacyGrammarPromptV3 = LegacyGrammarPromptV2 + NoEmojiRule;
+    public const string LegacyRewritePromptV2 = LegacyRewritePromptV1 + NoEmojiRule;
+    public const string LegacyTranslatePromptV2 = LegacyTranslatePromptV1 + NoEmojiRule;
+    public const string LegacyExplainPromptV2 = LegacyExplainPromptV1 + " Do not use emoji in your reply.";
+
+    // Rules the plugin owns and appends itself, so the editable prompts stay
+    // about the task and the output format can change per mode (and per cost
+    // setting) without rewriting what the user customized.
+    public const string ContextRule =
+        "The conversation so far is provided as context. Use it only to understand who is speaking, "
+        + "the situation and the writing style; match that style, tense and point of view. "
+        + "Never translate or rewrite the context itself, only the final message.";
+
+    public const string JsonFormatRule =
+        " Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
+        + "{\"corrected\":\"<the resulting message>\",\"explanations\":[\"<short note in Thai>\"]} "
+        + "Give up to 3 short Thai notes explaining what changed or what is worth learning. "
+        + "Use an empty explanations array when there is nothing to say.";
+
+    public const string PlainFormatRule =
+        " Reply with ONLY the resulting text as plain text. No JSON, no notes, no quotes, no preamble.";
+
+    // The editable prompts now describe the task only.
+    public const string DefaultGrammarPrompt =
+        "You are an English teacher helping a Thai player practice English in an online game chat. "
+        + "Correct the grammar and spelling of the user's message while keeping its meaning, tone and casual style. "
+        + "If the message is already correct, return it unchanged.";
+
+    public const string DefaultTranslatePrompt =
+        "You are an English teacher helping a Thai player chat in an online game. "
+        + "Translate the user's Thai (or mixed Thai-English) message into natural, casual English suitable for game chat.";
+
+    public const string DefaultExplainPrompt =
+        "You are an English teacher helping a Thai player understand English messages in an online game. "
+        + "Translate the message into natural Thai.";
+
+    public const string DefaultRewritePrompt =
+        "You are an English teacher helping a Thai player chat in an online game. {style} "
+        + "If the message is in Thai, translate it into English with that tone.";
 
     // Background image
     public string BackgroundImagePath = string.Empty;
@@ -298,6 +360,20 @@ public class Configuration : IPluginConfiguration
         AiRewritePrompt = other.AiRewritePrompt;
         AiGrammarKeybind = other.AiGrammarKeybind;
         AiTranslateKeybind = other.AiTranslateKeybind;
+        AiContextEnabled = other.AiContextEnabled;
+        AiContextForTranslate = other.AiContextForTranslate;
+        AiContextForExplain = other.AiContextForExplain;
+        AiContextForRewrite = other.AiContextForRewrite;
+        AiContextForGrammar = other.AiContextForGrammar;
+        AiContextMaxTokens = other.AiContextMaxTokens;
+        AiContextIdleMinutes = other.AiContextIdleMinutes;
+        AiContextMinChars = other.AiContextMinChars;
+        AiExplanationsInReading = other.AiExplanationsInReading;
+        AiMaxOutputTokens = other.AiMaxOutputTokens;
+        GrokReasoningEffort = other.GrokReasoningEffort;
+        AiCustomStyles = other.AiCustomStyles.Select(style => style.Clone()).ToList();
+        AiMonthlyBudgetThb = other.AiMonthlyBudgetThb;
+        AiUsdToThb = other.AiUsdToThb;
         BackgroundImagePath = other.BackgroundImagePath;
         BackgroundImageOpacity = other.BackgroundImageOpacity;
         BackgroundImageFitMode = other.BackgroundImageFitMode;

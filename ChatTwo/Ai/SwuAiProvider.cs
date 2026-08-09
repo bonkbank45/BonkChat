@@ -18,27 +18,38 @@ public class SwuAiProvider : IAiProvider
 {
     private const string BaseUrl = "https://swuai.swu.ac.th";
 
-    public async Task<string> ChatAsync(string systemPrompt, string userText, CancellationToken token)
+    public async Task<AiResponse> ChatAsync(AiRequest request, CancellationToken token)
     {
         EnsureConfigured();
 
-        // The documented API has no separate system prompt field, so the
-        // instruction is inlined with the user's message.
+        // The documented API takes a single content string, so the parts are
+        // concatenated with the stable instructions first.
+        var content = new StringBuilder(request.SystemPrompt);
+        if (!string.IsNullOrWhiteSpace(request.Context))
+            content.Append("\n\n").Append(request.Context);
+        content.Append("\n\n").Append(request.UserText);
+
         var body = new JsonObject
         {
             ["user_id"] = Plugin.Config.SwuAiUserId,
             ["model"] = Plugin.Config.SwuAiModel,
-            ["content"] = $"{systemPrompt}\n\n{userText}",
+            ["content"] = content.ToString(),
         };
 
         var raw = await Post("/swu/api/service/chat", body, token);
 
         var json = JsonNode.Parse(raw);
-        var content = json?["choices"]?[0]?["message"]?["content"]?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(content))
+        var text = json?["choices"]?[0]?["message"]?["content"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(text))
             throw new JsonException($"SWU AI response had no content: {AiUtil.Truncate(raw)}");
 
-        return content.Trim();
+        var usage = json?["usage"];
+        return new AiResponse
+        {
+            Text = text.Trim(),
+            InputTokens = usage?["prompt_tokens"]?.GetValue<int>() ?? 0,
+            OutputTokens = usage?["completion_tokens"]?.GetValue<int>() ?? 0,
+        };
     }
 
     public async Task<List<string>> GetModelsAsync(CancellationToken token)

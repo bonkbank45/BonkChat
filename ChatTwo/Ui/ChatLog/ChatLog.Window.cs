@@ -523,8 +523,8 @@ public partial class ChatLog : Window, IChatWindow
                 ImGui.TextDisabled("Rewrite as...");
                 using (ImRaii.Disabled(busy || string.IsNullOrWhiteSpace(InputHandler.ChatInput)))
                 {
-                    foreach (var style in Enum.GetValues<RewriteStyle>())
-                        if (ImGui.Selectable(style.Name()))
+                    foreach (var style in AiStyle.All())
+                        if (ImGui.Selectable(style.Name))
                             Plugin.AiManager.RequestSuggestion(InputHandler, AiMode.Rewrite, style);
                 }
 

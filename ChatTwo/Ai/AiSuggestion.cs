@@ -10,31 +10,38 @@ public enum AiMode
     Rewrite,
 }
 
-public enum RewriteStyle
+/// <summary>
+/// A rewrite tone. Built-in and user-defined styles are the same type, so the
+/// menus and the request path treat them identically.
+/// </summary>
+public readonly record struct AiStyle(string Name, string Instruction)
 {
-    Politer,
-    Friendlier,
-    Shorter,
+    public static readonly AiStyle[] BuiltIn =
+    [
+        new("Politer", "Rewrite the message to be more polite and courteous, suitable for talking to strangers in an online game."),
+        new("Friendlier", "Rewrite the message to be warmer, more friendly and casual, like chatting with close friends in an online game."),
+        new("Shorter", "Rewrite the message to be as short and concise as possible while keeping its meaning and tone."),
+    ];
+
+    /// <summary> Built-in styles followed by the user's own. </summary>
+    public static IEnumerable<AiStyle> All()
+    {
+        foreach (var style in BuiltIn)
+            yield return style;
+
+        foreach (var custom in Plugin.Config.AiCustomStyles)
+            if (!string.IsNullOrWhiteSpace(custom.Name) && !string.IsNullOrWhiteSpace(custom.Instruction))
+                yield return new AiStyle(custom.Name.Trim(), custom.Instruction.Trim());
+    }
 }
 
-public static class RewriteStyleExt
+[Serializable]
+public class AiCustomStyle
 {
-    public static string Name(this RewriteStyle style) => style switch
-    {
-        RewriteStyle.Politer => "Politer",
-        RewriteStyle.Friendlier => "Friendlier",
-        RewriteStyle.Shorter => "Shorter",
-        _ => style.ToString(),
-    };
+    public string Name = string.Empty;
+    public string Instruction = string.Empty;
 
-    /// <summary> The instruction spliced into the rewrite prompt's {style} placeholder. </summary>
-    public static string Instruction(this RewriteStyle style) => style switch
-    {
-        RewriteStyle.Politer => "Rewrite the message to be more polite and courteous, suitable for talking to strangers in an online game.",
-        RewriteStyle.Friendlier => "Rewrite the message to be warmer, more friendly and casual, like chatting with close friends in an online game.",
-        RewriteStyle.Shorter => "Rewrite the message to be as short and concise as possible while keeping its meaning and tone.",
-        _ => "Rewrite the message keeping its meaning.",
-    };
+    public AiCustomStyle Clone() => new() { Name = Name, Instruction = Instruction };
 }
 
 /// <summary>
@@ -50,7 +57,7 @@ public class AiSuggestion
     public required string Prefix;
     public required string Corrected;
     /// <summary> The tone used, when Mode is Rewrite. </summary>
-    public RewriteStyle? Style;
+    public string? StyleName;
     public List<string> Explanations = [];
     /// <summary> Corrected text split into words, flagged when changed. </summary>
     public List<(string Word, bool Changed)> Words = [];

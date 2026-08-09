@@ -22,6 +22,19 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.48.0 - Context, Custom Styles and the Usage Meter**
+  - Translations now see the recent conversation, so pronouns, tense and
+    writing style stay consistent instead of being guessed per message
+  - The transcript is append-only and tagged with a conversation id, which
+    is what xAI's prompt cache needs to bill most of it at the cheap rate
+  - Grok 4.3: reasoning is turned off by default (reasoning tokens are
+    billed as output and translation does not need them)
+  - Custom rewrite styles: add your own tones next to Politer/Friendlier/Shorter
+  - Usage meter with real token counts, cached share, and a monthly budget
+    that pauses requests when reached
+  - Reading mode can skip the Thai notes to keep replies short and cheap
+  - Context is configurable per mode; off for grammar correction by default
+
   **BonkChat 1.47.0**
   - New AI provider: Grok (xAI), using the Responses API
   - Pick grok-4.5 or grok-4.3 with one click, or type any model name

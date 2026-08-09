@@ -8,35 +8,42 @@ public class GeminiProvider : IAiProvider
 {
     private const string BaseUrl = "https://generativelanguage.googleapis.com/v1beta";
 
-    public async Task<string> ChatAsync(string systemPrompt, string userText, CancellationToken token)
+    public async Task<AiResponse> ChatAsync(AiRequest request, CancellationToken token)
     {
         var apiKey = SecretUtil.Open(Plugin.Config.GeminiApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Gemini API key is not set");
 
+        static JsonObject UserPart(string text) => new()
+        {
+            ["role"] = "user",
+            ["parts"] = new JsonArray { new JsonObject { ["text"] = text } },
+        };
+
+        var contents = new JsonArray();
+        if (!string.IsNullOrWhiteSpace(request.Context))
+            contents.Add(UserPart(request.Context));
+        contents.Add(UserPart(request.UserText));
+
         var body = new JsonObject
         {
             ["system_instruction"] = new JsonObject
             {
-                ["parts"] = new JsonArray { new JsonObject { ["text"] = systemPrompt } },
+                ["parts"] = new JsonArray { new JsonObject { ["text"] = request.SystemPrompt } },
             },
-            ["contents"] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["role"] = "user",
-                    ["parts"] = new JsonArray { new JsonObject { ["text"] = userText } },
-                },
-            },
+            ["contents"] = contents,
         };
 
-        var url = $"{BaseUrl}/models/{Plugin.Config.GeminiModel}:generateContent";
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Headers.Add("x-goog-api-key", apiKey);
-        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
-        request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+        if (request.MaxOutputTokens > 0)
+            body["generationConfig"] = new JsonObject { ["maxOutputTokens"] = request.MaxOutputTokens };
 
-        using var response = await AiUtil.HttpClient.SendAsync(request, token);
+        var url = $"{BaseUrl}/models/{Plugin.Config.GeminiModel}:generateContent";
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
+        httpRequest.Headers.Add("x-goog-api-key", apiKey);
+        httpRequest.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
+        httpRequest.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+
+        using var response = await AiUtil.HttpClient.SendAsync(httpRequest, token);
         var raw = await response.Content.ReadAsStringAsync(token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"Gemini returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");
@@ -46,7 +53,15 @@ public class GeminiProvider : IAiProvider
         if (string.IsNullOrWhiteSpace(content))
             throw new JsonException($"Gemini response had no content: {AiUtil.Truncate(raw)}");
 
-        return content.Trim();
+        var usage = json?["usageMetadata"];
+        return new AiResponse
+        {
+            Text = content.Trim(),
+            InputTokens = usage?["promptTokenCount"]?.GetValue<int>() ?? 0,
+            OutputTokens = usage?["candidatesTokenCount"]?.GetValue<int>() ?? 0,
+            CachedTokens = usage?["cachedContentTokenCount"]?.GetValue<int>() ?? 0,
+            ReasoningTokens = usage?["thoughtsTokenCount"]?.GetValue<int>() ?? 0,
+        };
     }
 
     public async Task<List<string>> GetModelsAsync(CancellationToken token)

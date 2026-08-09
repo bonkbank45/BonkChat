@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Nodes;
 using ChatTwo.Ui.Handler;
 using ChatTwo.Util;
@@ -6,17 +7,28 @@ using Dalamud.Interface.ImGuiNotification;
 namespace ChatTwo.Ai;
 
 /// <summary>
-/// The AI portal: dispatches requests to the configured provider and drives
-/// the grammar correction / translation features of the chat input.
+/// The AI portal: builds requests (prompt, scene context, output format),
+/// dispatches them to the configured provider and drives the suggestion panel.
 /// </summary>
 public class AiManager : IDisposable
 {
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
+    private Plugin Plugin { get; }
+
     private readonly OpenAiProvider OpenAi = new();
     private readonly GeminiProvider Gemini = new();
     private readonly SwuAiProvider SwuAi = new();
     private readonly GrokProvider Grok = new();
+
+    public readonly SceneBufferManager Scenes = new();
+    public readonly AiUsageTracker Usage;
+
+    public AiManager(Plugin plugin)
+    {
+        Plugin = plugin;
+        Usage = new AiUsageTracker(plugin);
+    }
 
     /// <summary> True while an AI request is in flight. </summary>
     public bool Busy { get; private set; }
@@ -43,13 +55,75 @@ public class AiManager : IDisposable
         _ => OpenAi,
     };
 
+    public static string CurrentModel => Plugin.Config.AiProvider switch
+    {
+        AiProviderType.OpenAi => Plugin.Config.OpenAiModel,
+        AiProviderType.Gemini => Plugin.Config.GeminiModel,
+        AiProviderType.SwuAi => Plugin.Config.SwuAiModel,
+        AiProviderType.Grok => Plugin.Config.GrokModel,
+        _ => string.Empty,
+    };
+
+    #region Prompt assembly
+    /// <summary> Reading modes answer in Thai and can skip the teaching notes. </summary>
+    private static bool IsReadingMode(AiMode mode) => mode is AiMode.Explain;
+
+    private static bool WantsExplanations(AiMode mode)
+    {
+        return !IsReadingMode(mode) || Plugin.Config.AiExplanationsInReading;
+    }
+
+    private static bool ContextEnabledFor(AiMode mode)
+    {
+        if (!Plugin.Config.AiContextEnabled)
+            return false;
+
+        return mode switch
+        {
+            AiMode.Grammar => Plugin.Config.AiContextForGrammar,
+            AiMode.Translate => Plugin.Config.AiContextForTranslate,
+            AiMode.Rewrite => Plugin.Config.AiContextForRewrite,
+            AiMode.Explain => Plugin.Config.AiContextForExplain,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Builds the system prompt: the user's task prompt, then the rules the
+    /// code owns (context handling, no emoji, output format). Everything here
+    /// is stable across requests of the same mode, which is what lets the
+    /// provider serve it from cache.
+    /// </summary>
+    private static string BuildSystemPrompt(AiMode mode, string? styleInstruction, bool hasContext)
+    {
+        var prompt = new StringBuilder(mode switch
+        {
+            AiMode.Grammar => Plugin.Config.AiGrammarPrompt,
+            AiMode.Translate => Plugin.Config.AiTranslatePrompt,
+            AiMode.Rewrite => Plugin.Config.AiRewritePrompt.Replace("{style}", styleInstruction ?? AiStyle.BuiltIn[0].Instruction),
+            _ => Plugin.Config.AiExplainPrompt,
+        });
+
+        if (hasContext)
+            prompt.Append(' ').Append(Configuration.ContextRule);
+
+        prompt.Append(Configuration.NoEmojiRule);
+
+        prompt.Append(WantsExplanations(mode)
+            ? Configuration.JsonFormatRule
+            : Configuration.PlainFormatRule);
+
+        return prompt.ToString();
+    }
+    #endregion
+
     #region Response cache
     // Successful responses are cached so repeating a request (re-checking an
     // unchanged sentence, re-translating a common message like "gg") is
-    // instant and costs no API quota. The key includes provider, model and
-    // prompt, so changing any of them naturally invalidates old entries.
+    // instant and costs no API quota. The key includes provider, model,
+    // prompt and context, so anything that would change the answer misses.
     private const int CacheLimit = 200;
-    private readonly object CacheLock = new();
+    private readonly Lock CacheLock = new();
     private readonly Dictionary<string, LinkedListNode<(string Key, string Corrected, List<string> Explanations)>> CacheMap = new();
     private readonly LinkedList<(string Key, string Corrected, List<string> Explanations)> CacheOrder = new();
 
@@ -69,20 +143,6 @@ public class AiManager : IDisposable
             CacheMap.Clear();
             CacheOrder.Clear();
         }
-    }
-
-    private static string CurrentModel => Plugin.Config.AiProvider switch
-    {
-        AiProviderType.OpenAi => Plugin.Config.OpenAiModel,
-        AiProviderType.Gemini => Plugin.Config.GeminiModel,
-        AiProviderType.SwuAi => Plugin.Config.SwuAiModel,
-        AiProviderType.Grok => Plugin.Config.GrokModel,
-        _ => string.Empty,
-    };
-
-    private static string CacheKey(AiMode mode, string prompt, string text)
-    {
-        return $"{Plugin.Config.AiProvider}{CurrentModel}{mode}{prompt}{text}";
     }
 
     private bool TryGetCached(string key, out (string Corrected, List<string> Explanations) result)
@@ -124,27 +184,43 @@ public class AiManager : IDisposable
     #endregion
 
     /// <summary>
-    /// Runs the given AI mode over the text and parses the structured reply
-    /// into the corrected/translated message and its Thai explanations.
-    /// Successful results are served from an LRU cache when repeated.
+    /// Runs the given AI mode over the text and parses the reply into the
+    /// resulting message and its Thai explanations. Successful results are
+    /// served from an LRU cache when repeated.
     /// </summary>
-    public async Task<(string Corrected, List<string> Explanations)> RunAsync(AiMode mode, string text, CancellationToken token, RewriteStyle? style = null)
+    public async Task<(string Corrected, List<string> Explanations)> RunAsync(
+        AiMode mode, string text, CancellationToken token, string? styleInstruction = null, Guid? tabId = null)
     {
-        var prompt = mode switch
-        {
-            AiMode.Grammar => Plugin.Config.AiGrammarPrompt,
-            AiMode.Translate => Plugin.Config.AiTranslatePrompt,
-            AiMode.Rewrite => Plugin.Config.AiRewritePrompt.Replace("{style}", (style ?? RewriteStyle.Politer).Instruction()),
-            _ => Plugin.Config.AiExplainPrompt,
-        };
+        if (!Usage.CanSpend())
+            throw new InvalidOperationException("Monthly AI budget reached; raise it or resume in the AI settings");
 
         text = text.Trim();
-        var key = CacheKey(mode, prompt, text);
+
+        // Short messages gain nothing from context, so they stay cheap and
+        // cacheable across the whole session.
+        var scene = tabId is { } id && ContextEnabledFor(mode) && text.Length >= Plugin.Config.AiContextMinChars
+            ? Scenes.Get(id)
+            : null;
+        var context = scene?.Build();
+
+        var systemPrompt = BuildSystemPrompt(mode, styleInstruction, context != null);
+
+        var key = $"{Plugin.Config.AiProvider}{CurrentModel}{systemPrompt}{context}{text}";
         if (TryGetCached(key, out var cached))
             return cached;
 
-        var reply = await CurrentProvider.ChatAsync(prompt, text, token);
-        var (corrected, explanations) = ParseStructuredReply(reply);
+        var response = await CurrentProvider.ChatAsync(new AiRequest
+        {
+            SystemPrompt = systemPrompt,
+            Context = context,
+            UserText = text,
+            ConversationId = scene?.ConversationId,
+            MaxOutputTokens = Plugin.Config.AiMaxOutputTokens,
+        }, token);
+
+        Usage.Record(CurrentModel, response);
+
+        var (corrected, explanations) = ParseStructuredReply(response.Text);
 
         // Collapse newlines; chat messages are single-line. Strip emoji as a
         // hard guarantee on top of the prompt instruction: the game chat and
@@ -157,34 +233,11 @@ public class AiManager : IDisposable
     }
 
     /// <summary>
-    /// Removes emoji: all astral-plane characters (surrogate pairs), zero
-    /// width joiners and variation selectors. BMP text (Latin, Thai, JP and
-    /// the symbols the game does support) passes through untouched.
-    /// </summary>
-    public static string StripEmoji(string text)
-    {
-        if (!text.Any(c => char.IsSurrogate(c) || c is '️' or '‍'))
-            return text;
-
-        var builder = new System.Text.StringBuilder(text.Length);
-        foreach (var c in text)
-        {
-            if (char.IsSurrogate(c) || c is '️' or '‍')
-                continue;
-
-            builder.Append(c);
-        }
-
-        // Collapse double spaces left behind by removed emoji.
-        return builder.Replace("  ", " ").ToString();
-    }
-
-    /// <summary>
     /// Requests a suggestion for the current chat input in the background and
     /// shows it in the suggestion panel. Commands keep their "/command "
     /// prefix untouched.
     /// </summary>
-    public void RequestSuggestion(InputHandler handler, AiMode mode, RewriteStyle? style = null)
+    public void RequestSuggestion(InputHandler handler, AiMode mode, AiStyle? style = null)
     {
         // Also guards the keybinds, which are checked regardless of AI state.
         if (!Plugin.Config.AiEnabled || Busy)
@@ -215,7 +268,7 @@ public class AiManager : IDisposable
     /// can be chained (grammar fix, then politer, then shorter) without
     /// applying in between.
     /// </summary>
-    public void RequestRestyle(InputHandler handler, RewriteStyle style)
+    public void RequestRestyle(InputHandler handler, AiStyle style)
     {
         if (!Plugin.Config.AiEnabled || Busy || Suggestion is not { } current || current.Mode == AiMode.Explain)
             return;
@@ -223,15 +276,17 @@ public class AiManager : IDisposable
         RunSuggestionRequest(handler, AiMode.Rewrite, style, current.Corrected, current.Prefix, current.OriginalInput);
     }
 
-    private void RunSuggestionRequest(InputHandler handler, AiMode mode, RewriteStyle? style, string text, string prefix, string originalInput)
+    private void RunSuggestionRequest(InputHandler handler, AiMode mode, AiStyle? style, string text, string prefix, string originalInput)
     {
+        var tabId = Plugin.CurrentTab.Identifier;
+
         Busy = true;
         Task.Run(async () =>
         {
             try
             {
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style);
+                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId);
 
                 var suggestion = new AiSuggestion
                 {
@@ -239,7 +294,7 @@ public class AiManager : IDisposable
                     OriginalInput = originalInput,
                     Prefix = prefix,
                     Corrected = corrected,
-                    Style = style,
+                    StyleName = style?.Name,
                     Explanations = explanations,
                     // A translation has nothing meaningful to diff against.
                     Words = mode is AiMode.Grammar or AiMode.Rewrite
@@ -280,13 +335,15 @@ public class AiManager : IDisposable
         if (!Plugin.Config.AiEnabled || Busy || string.IsNullOrWhiteSpace(messageText))
             return;
 
+        var tabId = Plugin.CurrentTab.Identifier;
+
         Busy = true;
         Task.Run(async () =>
         {
             try
             {
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var (translated, explanations) = await RunAsync(AiMode.Explain, messageText, cts.Token);
+                var (translated, explanations) = await RunAsync(AiMode.Explain, messageText, cts.Token, tabId: tabId);
 
                 var suggestion = new AiSuggestion
                 {
@@ -383,8 +440,31 @@ public class AiManager : IDisposable
         }
         catch (Exception)
         {
-            // Model ignored the JSON instruction; treat the reply as the text.
+            // Plain-text reply (concise mode) or the model ignored the format.
             return (reply.Trim(), []);
         }
+    }
+
+    /// <summary>
+    /// Removes emoji: all astral-plane characters (surrogate pairs), zero
+    /// width joiners and variation selectors. BMP text (Latin, Thai, JP and
+    /// the symbols the game does support) passes through untouched.
+    /// </summary>
+    public static string StripEmoji(string text)
+    {
+        if (!text.Any(c => char.IsSurrogate(c) || c is '️' or '‍'))
+            return text;
+
+        var builder = new StringBuilder(text.Length);
+        foreach (var c in text)
+        {
+            if (char.IsSurrogate(c) || c is '️' or '‍')
+                continue;
+
+            builder.Append(c);
+        }
+
+        // Collapse double spaces left behind by removed emoji.
+        return builder.Replace("  ", " ").ToString();
     }
 }

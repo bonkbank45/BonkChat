@@ -19,37 +19,67 @@ public class GrokProvider : IAiProvider
     /// <summary> Text models to offer when the API can't be asked. </summary>
     public static readonly string[] KnownModels = ["grok-4.5", "grok-4.3"];
 
-    public async Task<string> ChatAsync(string systemPrompt, string userText, CancellationToken token)
+    /// <summary>
+    /// Reasoning tokens are billed as output, and translation gains nothing
+    /// from them, but only grok-4.3 lets us turn them down.
+    /// </summary>
+    public static bool SupportsReasoningEffort(string model) =>
+        model.StartsWith("grok-4.3", StringComparison.OrdinalIgnoreCase);
+
+    public async Task<AiResponse> ChatAsync(AiRequest request, CancellationToken token)
     {
         var apiKey = SecretUtil.Open(Plugin.Config.GrokApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Grok API key is not set");
 
+        var model = Plugin.Config.GrokModel;
+
+        // Stable parts first, the new text last: xAI only reuses a cached
+        // prefix that matches exactly.
+        var input = new JsonArray { new JsonObject { ["role"] = "system", ["content"] = request.SystemPrompt } };
+        if (!string.IsNullOrWhiteSpace(request.Context))
+            input.Add(new JsonObject { ["role"] = "user", ["content"] = request.Context });
+        input.Add(new JsonObject { ["role"] = "user", ["content"] = request.UserText });
+
         var body = new JsonObject
         {
-            ["model"] = Plugin.Config.GrokModel,
-            ["input"] = new JsonArray
-            {
-                new JsonObject { ["role"] = "system", ["content"] = systemPrompt },
-                new JsonObject { ["role"] = "user", ["content"] = userText },
-            },
+            ["model"] = model,
+            ["input"] = input,
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/responses");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
-        request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+        if (request.MaxOutputTokens > 0)
+            body["max_output_tokens"] = request.MaxOutputTokens;
 
-        using var response = await AiUtil.HttpClient.SendAsync(request, token);
+        if (SupportsReasoningEffort(model) && !string.IsNullOrWhiteSpace(Plugin.Config.GrokReasoningEffort))
+            body["reasoning"] = new JsonObject { ["effort"] = Plugin.Config.GrokReasoningEffort };
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/responses");
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        httpRequest.Headers.TryAddWithoutValidation("User-Agent", AiUtil.UserAgent);
+        if (!string.IsNullOrWhiteSpace(request.ConversationId))
+            httpRequest.Headers.TryAddWithoutValidation("x-grok-conv-id", request.ConversationId);
+
+        httpRequest.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+
+        using var response = await AiUtil.HttpClient.SendAsync(httpRequest, token);
         var raw = await response.Content.ReadAsStringAsync(token);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"Grok returned {(int)response.StatusCode}: {AiUtil.Truncate(raw)}");
 
-        var content = ExtractOutputText(JsonNode.Parse(raw));
+        var json = JsonNode.Parse(raw);
+        var content = ExtractOutputText(json);
         if (string.IsNullOrWhiteSpace(content))
             throw new JsonException($"Grok response had no content: {AiUtil.Truncate(raw)}");
 
-        return content.Trim();
+        var usage = json?["usage"];
+        return new AiResponse
+        {
+            Text = content.Trim(),
+            InputTokens = usage?["input_tokens"]?.GetValue<int>() ?? 0,
+            OutputTokens = usage?["output_tokens"]?.GetValue<int>() ?? 0,
+            CachedTokens = usage?["input_tokens_details"]?["cached_tokens"]?.GetValue<int>() ?? 0,
+            ReasoningTokens = usage?["output_tokens_details"]?["reasoning_tokens"]?.GetValue<int>() ?? 0,
+        };
     }
 
     public async Task<List<string>> GetModelsAsync(CancellationToken token)
