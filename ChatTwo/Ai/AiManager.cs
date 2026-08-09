@@ -68,8 +68,13 @@ public class AiManager : IDisposable
     /// <summary> Reading modes answer in Thai and can skip the teaching notes. </summary>
     private static bool IsReadingMode(AiMode mode) => mode is AiMode.Explain;
 
-    private static bool WantsExplanations(AiMode mode)
+    private static bool WantsExplanations(AiMode mode, bool roleplay)
     {
+        // Grammar notes in the middle of a scene are noise, and they cost
+        // output tokens on every line.
+        if (roleplay)
+            return false;
+
         return !IsReadingMode(mode) || Plugin.Config.AiExplanationsInReading;
     }
 
@@ -94,22 +99,38 @@ public class AiManager : IDisposable
     /// is stable across requests of the same mode, which is what lets the
     /// provider serve it from cache.
     /// </summary>
-    private static string BuildSystemPrompt(AiMode mode, string? styleInstruction, bool hasContext)
+    private static string BuildSystemPrompt(AiMode mode, string? styleInstruction, bool hasContext, string? rpInstruction)
     {
-        var prompt = new StringBuilder(mode switch
+        // Roleplay rules apply to the text being produced for the game, not to
+        // translating what someone else wrote into Thai.
+        var roleplay = rpInstruction != null && mode is AiMode.Translate or AiMode.Rewrite;
+
+        StringBuilder prompt;
+        if (roleplay)
         {
-            AiMode.Grammar => Plugin.Config.AiGrammarPrompt,
-            AiMode.Translate => Plugin.Config.AiTranslatePrompt,
-            AiMode.Rewrite => Plugin.Config.AiRewritePrompt.Replace("{style}", styleInstruction ?? AiStyle.BuiltIn[0].Instruction),
-            _ => Plugin.Config.AiExplainPrompt,
-        });
+            prompt = new StringBuilder(Configuration.RoleplayBasePrompt);
+            if (mode == AiMode.Rewrite && styleInstruction != null)
+                prompt.Append(' ').Append(styleInstruction);
+
+            prompt.Append(rpInstruction);
+        }
+        else
+        {
+            prompt = new StringBuilder(mode switch
+            {
+                AiMode.Grammar => Plugin.Config.AiGrammarPrompt,
+                AiMode.Translate => Plugin.Config.AiTranslatePrompt,
+                AiMode.Rewrite => Plugin.Config.AiRewritePrompt.Replace("{style}", styleInstruction ?? AiStyle.BuiltIn[0].Instruction),
+                _ => Plugin.Config.AiExplainPrompt,
+            });
+        }
 
         if (hasContext)
             prompt.Append(' ').Append(Configuration.ContextRule);
 
         prompt.Append(Configuration.NoEmojiRule);
 
-        prompt.Append(WantsExplanations(mode)
+        prompt.Append(WantsExplanations(mode, roleplay)
             ? Configuration.JsonFormatRule
             : Configuration.PlainFormatRule);
 
@@ -189,7 +210,7 @@ public class AiManager : IDisposable
     /// served from an LRU cache when repeated.
     /// </summary>
     public async Task<(string Corrected, List<string> Explanations)> RunAsync(
-        AiMode mode, string text, CancellationToken token, string? styleInstruction = null, Guid? tabId = null)
+        AiMode mode, string text, CancellationToken token, string? styleInstruction = null, Guid? tabId = null, string? rpInstruction = null)
     {
         if (!Usage.CanSpend())
             throw new InvalidOperationException("Monthly AI budget reached; raise it or resume in the AI settings");
@@ -203,7 +224,7 @@ public class AiManager : IDisposable
             : null;
         var context = scene?.Build();
 
-        var systemPrompt = BuildSystemPrompt(mode, styleInstruction, context != null);
+        var systemPrompt = BuildSystemPrompt(mode, styleInstruction, context != null, rpInstruction);
 
         var key = $"{Plugin.Config.AiProvider}{CurrentModel}{systemPrompt}{context}{text}";
         if (TryGetCached(key, out var cached))
@@ -279,8 +300,11 @@ public class AiManager : IDisposable
     private void RunSuggestionRequest(InputHandler handler, AiMode mode, AiStyle? style, string text, string prefix, string originalInput)
     {
         // The scene follows the window's own tab, which is not the main
-        // window's current tab when typing in a pop-out.
-        var tabId = handler.MainWindow.CurrentTab.Identifier;
+        // window's current tab when typing in a pop-out. The roleplay block is
+        // resolved here because it reads game state from the main thread.
+        var tab = handler.MainWindow.CurrentTab;
+        var tabId = tab.Identifier;
+        var rpInstruction = RpProfile.BuildInstruction(tab);
 
         Busy = true;
         Task.Run(async () =>
@@ -288,7 +312,7 @@ public class AiManager : IDisposable
             try
             {
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId);
+                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId, rpInstruction);
 
                 var suggestion = new AiSuggestion
                 {

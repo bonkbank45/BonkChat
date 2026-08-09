@@ -155,7 +155,7 @@ public class Popout : Window, IChatWindow
         var showAi = Plugin.Config.AiEnabled;
         var inputWidth = ImGui.GetContentRegionAvail().X;
         if (showAi)
-            inputWidth -= (ImGuiUtil.CalcIconButtonSize().X + ImGui.GetStyle().ItemSpacing.X) * 2;
+            inputWidth -= (ImGuiUtil.CalcIconButtonSize().X + ImGui.GetStyle().ItemSpacing.X) * ChatLog.ChatLog.AiButtonCount(Tab);
 
         var tellSpecial = false;
         InputHandler.DrawInputArea(Tab, inputWidth, ref tellSpecial);

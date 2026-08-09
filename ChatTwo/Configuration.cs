@@ -239,6 +239,13 @@ public class Configuration : IPluginConfiguration
         + "Give up to 3 short Thai notes explaining what changed or what is worth learning. "
         + "Use an empty explanations array when there is nothing to say.";
 
+    // Roleplay mode replaces the task prompt rather than adding to it: the
+    // normal prompts ask for casual chat wording, which fights the roleplay
+    // instructions. Per-tab "extra instructions" cover customization here.
+    public const string RoleplayBasePrompt =
+        "You are helping a Thai player write roleplay in an online game. "
+        + "Turn the user's message, written in Thai, English or a mix, into English roleplay prose.";
+
     public const string PlainFormatRule =
         " Reply with ONLY the resulting text as plain text. No JSON, no notes, no quotes, no preamble.";
 
@@ -445,6 +452,18 @@ public class Tab
     public bool InputDisabled;
     public bool SupportsInput;
 
+    // Roleplay mode. The settings live on the tab and survive the toggle, so
+    // turning it off to chat normally and back on keeps this person's setup.
+    public bool RoleplayMode;
+    public Ai.RpPronoun RpSelfPronoun = Ai.RpPronoun.They;
+    public Ai.RpPronoun RpPartnerPronoun = Ai.RpPronoun.They;
+    public Ai.RpTone RpTone = Ai.RpTone.Sensual;
+    /// <summary> Empty means the character name is taken from the game. </summary>
+    public string RpSelfName = string.Empty;
+    /// <summary> Empty means the name is taken from this tab's tell target. </summary>
+    public string RpPartnerName = string.Empty;
+    public string RpExtraInstruction = string.Empty;
+
     /// <summary> Per-tab background image; empty falls back to the global one. </summary>
     public string BackgroundImagePath = string.Empty;
     /// <summary> Crop region for the tab image as UV rect; (0,0,1,1) = full image. </summary>
@@ -549,6 +568,13 @@ public class Tab
             TellTarget = TellTarget.Clone(),
             BackgroundImagePath = BackgroundImagePath,
             BackgroundImageCrop = BackgroundImageCrop,
+            RoleplayMode = RoleplayMode,
+            RpSelfPronoun = RpSelfPronoun,
+            RpPartnerPronoun = RpPartnerPronoun,
+            RpTone = RpTone,
+            RpSelfName = RpSelfName,
+            RpPartnerName = RpPartnerName,
+            RpExtraInstruction = RpExtraInstruction,
         };
     }
 

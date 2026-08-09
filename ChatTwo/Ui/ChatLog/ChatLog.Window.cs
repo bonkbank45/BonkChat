@@ -468,7 +468,7 @@ public partial class ChatLog : Window, IChatWindow
         var buttonWidth = ImGuiUtil.CalcIconButtonSize().X;
         var showNovice = Plugin.Config.ShowNoviceNetwork && GameFunctions.GameFunctions.IsMentor();
         var showAi = Plugin.Config.AiEnabled;
-        var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0) + (showAi ? 2 : 0);
+        var buttonsRight = 1 + (showNovice ? 1 : 0) + (Plugin.Config.ShowHideButton ? 1 : 0) + AiButtonCount(activeTab);
         var inputWidth = ImGui.GetContentRegionAvail().X - buttonWidth * buttonsRight - ImGui.GetStyle().ItemSpacing.X * buttonsRight;
         InputHandler.DrawInputArea(activeTab, inputWidth, ref TellSpecial);
 
@@ -500,6 +500,16 @@ public partial class ChatLog : Window, IChatWindow
 
         if (ImGuiUtil.IconButton(FontAwesomeIcon.Leaf))
             GameFunctions.GameFunctions.ClickNoviceNetworkButton();
+    }
+
+    /// <summary> How many buttons DrawAiButtons will draw, for input sizing. </summary>
+    public static int AiButtonCount(Tab tab)
+    {
+        if (!Plugin.Config.AiEnabled)
+            return 0;
+
+        // Grammar, translate, roleplay toggle, and its settings when on.
+        return tab.RoleplayMode ? 4 : 3;
     }
 
     /// <summary>
@@ -555,6 +565,115 @@ public partial class ChatLog : Window, IChatWindow
 
         if (ImGui.IsItemHovered())
             ImGuiUtil.Tooltip("Translate to English with AI");
+
+        ImGui.SameLine();
+        DrawRoleplayButtons(handler);
+    }
+
+    /// <summary>
+    /// The roleplay toggle for the handler's tab, plus its settings button
+    /// while the mode is on. Settings live on the tab, so switching the mode
+    /// off to chat normally and back on keeps this person's setup.
+    /// </summary>
+    private void DrawRoleplayButtons(InputHandler handler)
+    {
+        var tab = handler.MainWindow.CurrentTab;
+        var id = handler.InputHandlerId;
+
+        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedPink, tab.RoleplayMode))
+        {
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.TheaterMasks, $"rp-toggle-{id}"))
+            {
+                tab.RoleplayMode = !tab.RoleplayMode;
+                Plugin.SaveConfig();
+            }
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGuiUtil.Tooltip(tab.RoleplayMode
+                ? $"Roleplay mode is on for {tab.Name}\nClick to turn it off; your settings are kept"
+                : $"Turn on roleplay mode for {tab.Name}");
+
+        if (!tab.RoleplayMode)
+            return;
+
+        ImGui.SameLine();
+
+        var popupId = $"rp-settings-{id}";
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.SlidersH, $"rp-settings-btn-{id}"))
+            ImGui.OpenPopup(popupId);
+
+        if (ImGui.IsItemHovered())
+            ImGuiUtil.Tooltip("Roleplay settings for this tab");
+
+        using var popup = ImRaii.Popup(popupId);
+        if (popup)
+            DrawRoleplaySettings(tab);
+    }
+
+    private void DrawRoleplaySettings(Tab tab)
+    {
+        ImGuiUtil.WrappedTextWithColor(ImGuiColors.ParsedPink, $"Roleplay settings - {tab.Name}");
+        ImGui.Separator();
+
+        var changed = false;
+
+        ImGui.TextUnformatted("Tone");
+        foreach (var tone in Enum.GetValues<RpTone>())
+        {
+            if (ImGui.RadioButton(tone.Name(), tab.RpTone == tone))
+            {
+                tab.RpTone = tone;
+                changed = true;
+            }
+
+            if (ImGui.IsItemHovered())
+                ImGuiUtil.Tooltip(tone.Description());
+
+            ImGui.SameLine();
+        }
+        ImGui.NewLine();
+        ImGuiUtil.HelpText("Changes the wording, never what happens in the scene.");
+        ImGui.Spacing();
+
+        changed |= DrawPronoun("My character", ref tab.RpSelfPronoun);
+        changed |= DrawPronoun("The other character", ref tab.RpPartnerPronoun);
+        ImGuiUtil.HelpText("Fixed pronouns keep the AI from switching between he and she mid-scene.");
+        ImGui.Spacing();
+
+        ImGui.SetNextItemWidth(200f);
+        changed |= ImGui.InputTextWithHint("My name##rp-self-name", "from the game", ref tab.RpSelfName, 64);
+        ImGui.SetNextItemWidth(200f);
+        changed |= ImGui.InputTextWithHint("Their name##rp-partner-name", tab.TellTarget.IsSet() ? tab.TellTarget.Name : "not set", ref tab.RpPartnerName, 64);
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("Extra instructions");
+        changed |= ImGui.InputTextMultiline("##rp-extra", ref tab.RpExtraInstruction, 1000, new Vector2(360, 70));
+        ImGuiUtil.HelpText("Anything else, in your own words. For example: keep replies to two sentences, or always call him master.");
+
+        if (changed)
+            Plugin.DeferredSaveFrames = 60;
+    }
+
+    private static bool DrawPronoun(string label, ref RpPronoun pronoun)
+    {
+        ImGui.TextUnformatted(label);
+        ImGui.SameLine();
+
+        var changed = false;
+        foreach (var value in Enum.GetValues<RpPronoun>())
+        {
+            if (ImGui.RadioButton($"{value.ToString().ToLowerInvariant()}##{label}", pronoun == value))
+            {
+                pronoun = value;
+                changed = true;
+            }
+
+            ImGui.SameLine();
+        }
+
+        ImGui.NewLine();
+        return changed;
     }
 
     public Dictionary<string, InputChannel> GetValidChannels()

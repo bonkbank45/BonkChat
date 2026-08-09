@@ -22,6 +22,21 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.50.0 - Roleplay Mode**
+  - A theatre-masks button next to the AI buttons toggles roleplay mode
+    for that tab; the channel line shows [RP] while it is on
+  - Turning it on reveals a settings button: tone (Neutral / Sensual /
+    Explicit), fixed pronouns for both characters, names, and a free
+    text box for your own instructions
+  - Fixed pronouns stop the AI from switching between he and she mid
+    scene, which no amount of context reliably fixes on its own
+  - Output keeps your *asterisks* and "quotes", writes third person
+    present tense, mirrors the length of recent messages, and never
+    invents actions you did not write
+  - Thai notes are skipped in this mode: less noise mid scene, and cheaper
+  - Settings live on the tab, so switching the mode off to chat normally
+    and back on keeps that person's setup
+
   **BonkChat 1.49.1**
   - Pop-out tab windows now have the AI buttons, and Ctrl+G / Ctrl+T act
     on the input box you are actually typing in
