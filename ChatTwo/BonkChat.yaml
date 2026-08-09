@@ -22,6 +22,10 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.46.0**
+  - Merged upstream Chat 2 updates: emotes now load from a bundled
+    static list (fixes emotes after the BetterTTV API change)
+
   **BonkChat 1.45.0**
   - The AI panel is now a floating window above the chat box, so long
     suggestions no longer shrink the message log
