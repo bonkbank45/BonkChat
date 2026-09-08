@@ -49,10 +49,20 @@ public static class RpExt
         RpTone.Neutral => "Keep the wording plain and descriptive.",
         RpTone.Sensual => "Use warm, sensory, evocative wording; favour texture, heat and movement over plain description. "
                           + "Prefer vivid, specific verbs over generic ones.",
+        // Escalating the wording is not the same as inventing events, and the
+        // difference has to be spelled out: the player often writes something
+        // mild because their English vocabulary is limited, not because they
+        // meant it mildly.
         RpTone.Explicit => "Use warm, sensory, evocative wording; favour texture, heat and movement over plain description. "
                            + "Prefer vivid, specific verbs over generic ones. "
-                           + "Be direct and explicit where the scene calls for it: use blunt, unambiguous adult vocabulary "
-                           + "rather than euphemism, and never fade to black.",
+                           + "Be as physically direct as the message allows: take the boldest reasonable reading of what "
+                           + "the player wrote rather than the politest one, name things with the frank words adults "
+                           + "actually use in this kind of scene instead of clinical or coy ones, and never fade to black. "
+                           + "Thai carries intensity in particles that plain English drops, so you may put that intensity "
+                           + "back into the wording with swearing, emphasis and the coarser register adults use in the "
+                           + "heat of a scene. "
+                           + "Saying the same thing more explicitly or more intensely is not inventing and is wanted here; "
+                           + "adding actions, participants or events the message does not contain still is not allowed.",
         _ => string.Empty,
     };
 

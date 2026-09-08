@@ -22,6 +22,14 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.55.0**
+  - Explicit tone is now actually bolder than Sensual. It takes the
+    boldest reasonable reading of what you wrote instead of the politest
+    one, and puts back the intensity Thai carries in particles that plain
+    English drops
+  - This changes wording only: adding actions, participants or events you
+    did not write is still forbidden, so short lines stay short
+
   **BonkChat 1.54.1**
   - Spoken lines now use contractions the way people actually talk:
     "Don't stop" instead of "Do not stop yet"
