@@ -228,10 +228,20 @@ public class Configuration : IPluginConfiguration
     // Rules the plugin owns and appends itself, so the editable prompts stay
     // about the task and the output format can change per mode (and per cost
     // setting) without rewriting what the user customized.
+    // A bare transcript in a user message reads as a conversation to continue,
+    // and the model would prefix its reply with the scene's last line. The
+    // labels are constant, so they do not disturb the cached prefix.
+    public const string ContextHeader =
+        "[Scene so far - reference only. Do not translate, quote, repeat or continue any of these lines.]";
+
+    public const string TargetHeader =
+        "[The message to work on, and the only thing your reply may contain:]";
+
     public const string ContextRule =
         "The conversation so far is provided as context. Use it only to understand who is speaking, "
-        + "the situation and the writing style; match that style, tense and point of view. "
-        + "Never translate or rewrite the context itself, only the final message.";
+        + "the situation and the writing style. "
+        + "Never translate, rewrite, quote, repeat or continue anything from the context: "
+        + "your reply must contain only the final message, rewritten.";
 
     public const string JsonFormatRule =
         " Reply with ONLY minified JSON in exactly this shape, no markdown, no extra text: "
@@ -242,9 +252,16 @@ public class Configuration : IPluginConfiguration
     // Roleplay mode replaces the task prompt rather than adding to it: the
     // normal prompts ask for casual chat wording, which fights the roleplay
     // instructions. Per-tab "extra instructions" cover customization here.
+    // "Turn it into roleplay prose" made the model narrate lines the player
+    // meant as speech, so the base now says to keep the kind of line intact.
+    // The speech-or-narration decision is stated first as well as last: Thai
+    // drops subjects, so a spoken line reads like description to the model and
+    // it drifts into narrating unless the rule frames the whole prompt.
     public const string RoleplayBasePrompt =
-        "You are helping a Thai player write roleplay in an online game. "
-        + "Turn the user's message, written in Thai, English or a mix, into English roleplay prose.";
+        "You are helping a Thai player take part in roleplay in an online game. Translate their message into English. "
+        + "Asterisks alone decide what kind of line it is: a message wrapped in *asterisks* is narration, and a message "
+        + "without asterisks is the character speaking out loud, however descriptive the words themselves sound. "
+        + "Never turn one into the other.";
 
     // Rewrites are fed prose that is already English, so the translate wording
     // above makes the model decide there is nothing left to do and hand the

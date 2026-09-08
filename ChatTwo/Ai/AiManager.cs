@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using ChatTwo.Ui.Handler;
 using ChatTwo.Util;
 using Dalamud.Interface.ImGuiNotification;
@@ -240,25 +241,60 @@ public class AiManager : IDisposable
         if (useCache && TryGetCached(key, out var cached))
             return cached;
 
-        var response = await CurrentProvider.ChatAsync(new AiRequest
+        string corrected;
+        List<string> explanations;
+        var correction = string.Empty;
+
+        // One retry, with the mistake spelled out, for the two failures a
+        // prompt alone does not reliably prevent.
+        for (var attempt = 0; ; attempt++)
         {
-            SystemPrompt = systemPrompt,
-            Context = context,
-            UserText = text,
-            ConversationId = scene?.ConversationId,
-            MaxOutputTokens = Plugin.Config.AiMaxOutputTokens,
-        }, token);
+            var response = await CurrentProvider.ChatAsync(new AiRequest
+            {
+                SystemPrompt = systemPrompt + correction,
+                // Label both halves so the transcript reads as reference
+                // material rather than a conversation waiting to be continued.
+                Context = context == null ? null : $"{Configuration.ContextHeader}\n{context}",
+                UserText = context == null ? text : $"{Configuration.TargetHeader}\n{text}",
+                ConversationId = scene?.ConversationId,
+                MaxOutputTokens = Plugin.Config.AiMaxOutputTokens,
+            }, token);
 
-        Usage.Record(CurrentModel, response);
+            Usage.Record(CurrentModel, response);
 
-        var (corrected, explanations) = ParseStructuredReply(response.Text);
+            (corrected, explanations) = ParseStructuredReply(response.Text);
 
-        // Collapse newlines; chat messages are single-line. Strip emoji as a
-        // hard guarantee on top of the prompt instruction: the game chat and
-        // the panel font can't render them.
-        corrected = StripEmoji(corrected.ReplaceLineEndings(" ")).Trim();
-        corrected = PreserveEmoteWrapping(text, corrected);
-        explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
+            // Collapse newlines; chat messages are single-line. Strip emoji as
+            // a hard guarantee on top of the prompt instruction: the game chat
+            // and the panel font can't render them.
+            corrected = StripEmoji(corrected.ReplaceLineEndings(" ")).Trim();
+            corrected = PreserveEmoteWrapping(text, corrected);
+            explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
+
+            if (attempt > 0)
+                break;
+
+            // A rewrite that hands back what it was given looks like a dead
+            // button, so ask again rather than showing the user nothing.
+            if (mode == AiMode.Rewrite && string.Equals(corrected, text.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                Plugin.Log.Debug("Rewrite returned the original text, asking once more");
+                correction = " The previous attempt returned the message unchanged, which is not acceptable. "
+                             + "Produce a genuinely different wording this time.";
+                continue;
+            }
+
+            if (rpInstruction != null && NarratedASpokenLine(text, corrected))
+            {
+                Plugin.Log.Debug("Roleplay reply narrated a spoken line, asking once more");
+                correction = " The previous attempt narrated a line that had no asterisks. That message is the "
+                             + "character speaking out loud: write it again as first-person spoken dialogue, "
+                             + "with no asterisks and no third-person description of the characters.";
+                continue;
+            }
+
+            break;
+        }
 
         if (useCache)
             StoreInCache(key, corrected, explanations);
@@ -489,23 +525,41 @@ public class AiManager : IDisposable
     }
 
     /// <summary>
-    /// Roleplay emotes are wrapped in asterisks, which models like to drop as
-    /// if they were markdown emphasis. If the original was wrapped and the
-    /// reply came back bare, put the wrapping back instead of trusting the
-    /// prompt to hold.
+    /// Keeps the reply's emote wrapping in step with the original instead of
+    /// trusting the prompt: models drop asterisks as if they were markdown
+    /// emphasis, and add them to plain speech that was never an emote.
     /// </summary>
     public static string PreserveEmoteWrapping(string original, string result)
     {
         original = original.Trim();
         result = result.Trim();
 
-        if (result.Length == 0 || result.Contains('*'))
+        if (result.Length == 0)
             return result;
 
-        if (original.Length < 2 || !original.StartsWith('*') || !original.EndsWith('*'))
-            return result;
+        var originalWrapped = original.Length > 1 && original.StartsWith('*') && original.EndsWith('*');
+        var resultWrapped = result.Length > 1 && result.StartsWith('*') && result.EndsWith('*');
 
-        return $"*{result}*";
+        // The original was an emote but the wrapping was dropped.
+        if (originalWrapped && !result.Contains('*'))
+            return $"*{result}*";
+
+        // The player used no asterisks, so none belong in the reply.
+        if (!original.Contains('*') && result.Contains('*'))
+            return result.Replace("*", "").Trim();
+
+        return result;
+    }
+
+    // Thai drops the subject, so a spoken line reads like description and the
+    // model narrates it however firmly the prompt says not to. Catching the
+    // drift and asking again is the only reliable fix.
+    private static readonly Regex NarrationStart =
+        new(@"^\s*(she|he|they)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static bool NarratedASpokenLine(string original, string result)
+    {
+        return !original.Contains('*') && NarrationStart.IsMatch(result);
     }
 
     /// <summary>

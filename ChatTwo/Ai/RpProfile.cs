@@ -76,8 +76,9 @@ public static class RpExt
             + "dialogue or sensations that are not in the original. Keep the result close to the length of the original message.",
         RpDetail.Embellish =>
             "Write flowing prose rather than a literal word-for-word translation, and flesh the message out with sensory "
-            + "description of what is already happening, matching the length and level of detail of the previous messages. "
-            + "Do not introduce new actions or dialogue that change what happens.",
+            + "description of what the message itself describes, following the length and level of detail of the previous "
+            + "messages. Never introduce actions, body parts, positions, participants or dialogue the message does not "
+            + "mention, and keep it to a sentence or two when there is no context to follow.",
         _ => string.Empty,
     };
 
@@ -111,30 +112,44 @@ public static class RpProfile
             partner = tab.TellTarget.Name;
 
         var builder = new StringBuilder();
-        // The base prompt already establishes that this is roleplay prose.
-        builder.Append(" Write in third person, present tense.");
 
-        if (self.Length > 0)
-            builder.Append($" My character is {self}, referred to as {tab.RpSelfPronoun.Subject()}.");
-        else
-            builder.Append($" My character is referred to as {tab.RpSelfPronoun.Subject()}.");
+        // Scoped to narration on purpose. Declaring the pronouns without that
+        // scope kept pulling spoken lines into the third person, so "it feels
+        // good" came back as "she feels good".
+        var selfIs = self.Length > 0 ? $" My character is {self}." : " ";
+        builder.Append($"{selfIs} Use {tab.RpSelfPronoun.Subject()} for my character in narration only; "
+                       + "in spoken lines my character speaks in the first person as I.");
 
-        if (partner.Length > 0)
-            builder.Append($" The other character is {partner}, referred to as {tab.RpPartnerPronoun.Subject()}.");
-        else
-            builder.Append($" The other character is referred to as {tab.RpPartnerPronoun.Subject()}.");
+        var partnerIs = partner.Length > 0 ? $" The other character is {partner}." : " ";
+        builder.Append($"{partnerIs} Use {tab.RpPartnerPronoun.Subject()} for the other character in narration only; "
+                       + "in spoken lines my character addresses them as you.");
 
-        builder.Append(" Asterisks and quotation marks are roleplay formatting, not markdown, so they must survive: "
-                       + "if the message is wrapped in asterisks then your reply must be wrapped in asterisks too, "
-                       + "and any speech in quotation marks stays in quotation marks.");
+        builder.Append(" Reproduce the message's formatting exactly. Asterisks and quotation marks are roleplay "
+                       + "formatting rather than markdown: keep the ones that are there, and never add asterisks "
+                       + "or quotation marks that the message does not already have.");
         builder.Append(" The names are for your reference only: refer to the characters by pronoun, "
                        + "and only write a name when the original message names someone.");
+        builder.Append(" Translate the whole message into English. Never leave Thai in your reply, "
+                       + "and never repeat the player's original text alongside the translation.");
         builder.Append(' ').Append(tab.RpDetail.Instruction());
         builder.Append(' ').Append(tab.RpTone.Instruction());
 
+        // Last, so no detail or tone setting can talk the model into narrating
+        // a line the player meant as speech. Third person belongs to narration
+        // only: applying it everywhere turned "it feels good" into "she feels
+        // good", and dropping the subject turned an emote into a bare verb.
+        builder.Append(" Decide the following from the asterisks alone, never from what the message is about, and let "
+                       + "nothing above override it. Text wrapped in *asterisks* is narration: write it in third person "
+                       + "present tense with an explicit subject, like *She smiles.* rather than *smiles*. Text that is "
+                       + "not wrapped in asterisks is the character speaking out loud: translate it as first-person "
+                       + "spoken English exactly as she would say it, keeping I as I and you as you, and never rewrite "
+                       + "it as narration about the characters.");
+
+        // Marked as an override, or the no-invention rules above win and the
+        // player's own instruction is quietly ignored.
         var extra = tab.RpExtraInstruction.Trim();
         if (extra.Length > 0)
-            builder.Append(' ').Append(extra);
+            builder.Append(" The player's own instruction, which takes priority over everything above: ").Append(extra);
 
         return builder.ToString();
     }

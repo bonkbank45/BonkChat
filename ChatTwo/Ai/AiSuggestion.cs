@@ -35,11 +35,16 @@ public readonly record struct AiStyle(string Name, string Instruction)
     public static readonly AiStyle[] RoleplayBuiltIn =
     [
         new("Rephrase", Rephrase),
-        new("Longer", "Expand this with more sensory description of what is already happening, keeping the same tone. "
-                      + "Do not introduce new actions, thoughts or dialogue."),
-        new("Shorter", "Condense this to its essentials while keeping the tone and the imagery that matters most."),
-        new("Bolder", "Make the wording more direct and intense, using blunter vocabulary. "
-                      + "Do not introduce new actions, thoughts or dialogue."),
+        // Both say so in words rather than trusting "condense" or "expand":
+        // the tone rules push towards richer wording, and Shorter came back
+        // longer than what it was given.
+        new("Longer", "Make this noticeably longer than the input by expanding the sensory description of what is "
+                      + "already happening, keeping the same tone. Do not introduce new actions, thoughts or dialogue."),
+        new("Shorter", "Make this noticeably shorter than the input: keep only what matters, cut description that is "
+                       + "not needed, and never return something as long as or longer than what you were given."),
+        new("Bolder", "Make the wording noticeably more direct and intense than the input, swapping soft or vague "
+                      + "words for blunt, unambiguous ones. Do not introduce new actions, thoughts or dialogue, "
+                      + "and never return the input unchanged."),
     ];
 
     /// <summary> Built-in styles for the mode, followed by the user's own. </summary>
