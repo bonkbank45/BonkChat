@@ -100,7 +100,7 @@ public class AiManager : IDisposable
     /// is stable across requests of the same mode, which is what lets the
     /// provider serve it from cache.
     /// </summary>
-    private static string BuildSystemPrompt(AiMode mode, string? styleInstruction, bool hasContext, string? rpInstruction)
+    private static string BuildSystemPrompt(AiMode mode, string? styleInstruction, bool hasContext, string? rpInstruction, bool hasAnchor)
     {
         // Roleplay rules apply to the text being produced for the game, not to
         // translating what someone else wrote into Thai.
@@ -135,6 +135,12 @@ public class AiManager : IDisposable
                 _ => Plugin.Config.AiExplainPrompt,
             });
         }
+
+        // After the style instruction on purpose: the button is allowed to
+        // overrule the standing rules about length and register, but not to
+        // bring in content the player never wrote.
+        if (hasAnchor)
+            prompt.Append(Configuration.RewriteAnchorRule);
 
         if (hasContext)
             prompt.Append(' ').Append(Configuration.ContextRule);
@@ -222,7 +228,7 @@ public class AiManager : IDisposable
     /// </summary>
     public async Task<(string Corrected, List<string> Explanations)> RunAsync(
         AiMode mode, string text, CancellationToken token, string? styleInstruction = null, Guid? tabId = null,
-        string? rpInstruction = null, string? styleName = null)
+        string? rpInstruction = null, string? styleName = null, string? sourceText = null, RpGuard? rpGuard = null)
     {
         if (!Usage.CanSpend())
             throw new InvalidOperationException("Monthly AI budget reached; raise it or resume in the AI settings");
@@ -236,7 +242,16 @@ public class AiManager : IDisposable
             : null;
         var context = scene?.Build();
 
-        var systemPrompt = BuildSystemPrompt(mode, styleInstruction, context != null, rpInstruction);
+        // A rewrite button is handed English the AI wrote a moment ago, so
+        // without the player's own message in the request nothing says what
+        // the scene actually contains. Each press was then free to add a
+        // little, and the next press treated the addition as source material.
+        var anchor = mode == AiMode.Rewrite && !string.IsNullOrWhiteSpace(sourceText)
+                     && WordsOnly(sourceText) != WordsOnly(text)
+            ? sourceText.Trim()
+            : null;
+
+        var systemPrompt = BuildSystemPrompt(mode, styleInstruction, context != null, rpInstruction, anchor != null);
 
         // Rewrites are the user asking for another take, so serving one from
         // the cache would hand back the very text they want changed.
@@ -246,15 +261,42 @@ public class AiManager : IDisposable
         if (useCache && TryGetCached(key, out var cached))
             return cached;
 
+        // Labelled the same way as the context, so the model can tell the
+        // player's own words from the draft it is being asked to change.
+        var userText = text;
+        if (anchor != null)
+            userText = $"{Configuration.SourceHeader}\n{anchor}\n\n{Configuration.TargetHeader}\n{text}";
+        else if (context != null)
+            userText = $"{Configuration.TargetHeader}\n{text}";
+
+        // Invention is measured against what the player wrote, not against the
+        // draft, or content added by one button survives every later press.
+        var written = anchor ?? text;
+
         var corrected = string.Empty;
         var explanations = new List<string>();
         var correction = string.Empty;
 
-        // Up to two retries, each naming the mistake, for the failures a
-        // prompt alone does not reliably prevent. Two rather than one because
-        // a single retry can be spent on the first problem while the second
+        // Mistakes accumulate rather than replacing one another. Sending only
+        // the newest one let the model fix it by breaking the previous one and
+        // loop: told to make a three-word emote longer, it spelled out both
+        // character names; told to use pronouns, it came back short; told to
+        // lengthen, it reached for the names again.
+        var mistakes = new List<string>();
+
+        void Note(string message)
+        {
+            if (!mistakes.Contains(message))
+                mistakes.Add(message);
+
+            correction = string.Concat(mistakes);
+        }
+
+        // Up to three retries, each naming the mistake, for the failures a
+        // prompt alone does not reliably prevent. More than one because a
+        // single retry can be spent on the first problem while the second
         // still slips through, and the prompt is cached so this is cheap.
-        for (var attempt = 0; attempt < 3; attempt++)
+        for (var attempt = 0; attempt < 4; attempt++)
         {
             var response = await CurrentProvider.ChatAsync(new AiRequest
             {
@@ -262,7 +304,7 @@ public class AiManager : IDisposable
                 // Label both halves so the transcript reads as reference
                 // material rather than a conversation waiting to be continued.
                 Context = context == null ? null : $"{Configuration.ContextHeader}\n{context}",
-                UserText = context == null ? text : $"{Configuration.TargetHeader}\n{text}",
+                UserText = userText,
                 ConversationId = scene?.ConversationId,
                 MaxOutputTokens = Plugin.Config.AiMaxOutputTokens,
             }, token);
@@ -278,7 +320,7 @@ public class AiManager : IDisposable
             corrected = PreserveEmoteWrapping(text, corrected);
             explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
 
-            if (attempt == 2)
+            if (attempt == 3)
                 break;
 
             // A rewrite that hands back what it was given looks like a dead
@@ -286,8 +328,8 @@ public class AiManager : IDisposable
             if (mode == AiMode.Rewrite && WordsOnly(corrected) == WordsOnly(text))
             {
                 Plugin.Log.Debug("Rewrite returned the original text, asking again");
-                correction = " The previous attempt returned the message unchanged, which is not acceptable. "
-                             + "Produce a genuinely different wording this time.";
+                Note(" The previous attempt returned the message unchanged, which is not acceptable. "
+                    + "Produce a genuinely different wording this time.");
                 continue;
             }
 
@@ -295,35 +337,127 @@ public class AiManager : IDisposable
             if (styleName == "Longer" && corrected.Length <= text.Trim().Length)
             {
                 Plugin.Log.Debug("Longer did not lengthen the text, asking again");
-                correction = " The previous attempt was not longer than the message. Make it clearly longer by "
-                             + "drawing out what is already there, without describing anything new.";
+                Note(" The previous attempt was not longer than the message. Make it clearly longer by "
+                    + "drawing out what is already there, without describing anything new.");
+                continue;
+            }
+
+            // The other end of the same button: a six-word line came back as
+            // 549 characters of the same demand repeated, past what the game
+            // will even accept.
+            if (styleName == "Longer" && corrected.Length > text.Trim().Length * 2.2)
+            {
+                Plugin.Log.Debug("Longer overshot, asking again");
+                Note(" The previous attempt was far too long and repeated itself. Make it longer than the "
+                    + "message but no more than about twice its length, and say each thing once.");
+                continue;
+            }
+
+            // Bolder swaps words; a sentence it did not have before is an
+            // action, demand or thought that nobody wrote.
+            if (styleName == "Bolder" && SentenceCount(corrected) > SentenceCount(text))
+            {
+                Plugin.Log.Debug("Bolder added a sentence, asking again");
+                Note(" The previous attempt added a sentence that the message does not have. Keep the same "
+                    + "number of sentences and make them blunter from the inside, by replacing words.");
                 continue;
             }
 
             if (styleName == "Shorter" && corrected.Length >= text.Trim().Length)
             {
                 Plugin.Log.Debug("Shorter did not shorten the text, asking again");
-                correction = " The previous attempt was not shorter than the message. Cut it down so the result is "
-                             + "clearly shorter than what you were given.";
+                Note(" The previous attempt was not shorter than the message. Cut it down so the result is "
+                    + "clearly shorter than what you were given.");
                 continue;
             }
 
-            if (rpInstruction != null && AddedDialogue(text, corrected))
+            if (rpInstruction != null && AddedDialogue(written, corrected))
             {
                 Plugin.Log.Debug("Roleplay reply invented dialogue, asking again");
-                correction = " The previous attempt put words in the character's mouth that the message does not "
-                             + "contain. Write it again with no quoted speech at all, keeping only what the message "
-                             + "itself says.";
+                Note(" The previous attempt put words in the character's mouth that the message does not "
+                    + "contain. Write it again with no quoted speech at all, keeping only what the message "
+                    + "itself says.");
+                continue;
+            }
+
+            // Bolder read "swap soft words for blunt ones" as permission to
+            // rewrite a deliberately slow emote into a violent one, and every
+            // later press then inherited the change.
+            if (rpInstruction != null && ChangedTheManner(text, corrected))
+            {
+                Plugin.Log.Debug("Roleplay rewrite changed the manner of the action, asking again");
+                Note(" The previous attempt changed how the action is done. The message describes something "
+                    + "unhurried or gentle, and it stays that way: put the intensity into the choice of "
+                    + "words instead, and keep the pace the message gives it.");
                 continue;
             }
 
             if (rpInstruction != null && NarratedASpokenLine(text, corrected))
             {
                 Plugin.Log.Debug("Roleplay reply narrated a spoken line, asking again");
-                correction = " The previous attempt narrated a line that had no asterisks. That message is the "
-                             + "character speaking out loud: write it again as first-person spoken dialogue, "
-                             + "with no asterisks and no third-person description of the characters.";
+                Note(" The previous attempt narrated a line that had no asterisks. That message is the "
+                    + "character speaking out loud: write it again as first-person spoken dialogue, "
+                    + "with no asterisks and no third-person description of the characters.");
                 continue;
+            }
+
+            // The pronoun settings are checkable, so they are checked rather
+            // than declared and hoped for: every one of these is an escape the
+            // model took when two characters shared a pronoun set.
+            if (rpGuard is { } guard)
+            {
+                // Longer is exempt: adding clauses of filler is the whole point
+                // of the button, and holding it to this rule as well left it
+                // with nothing it was allowed to produce.
+                if (!guard.Expands && styleName != "Longer" && PaddedWithExtraClauses(written, corrected))
+                {
+                    Plugin.Log.Debug("Roleplay reply added clauses the message does not have, asking again");
+                    Note(" The previous attempt answered the message with more separate statements than the "
+                        + "message contains. Say only what the message says, in the same number of parts, "
+                        + "however bluntly you say it.");
+                    continue;
+                }
+
+                if (SecondPersonNarration(text, corrected))
+                {
+                    Plugin.Log.Debug("Roleplay narration used the second person, asking again");
+                    Note(" The previous attempt wrote one of the characters as you or your inside the "
+                        + "narration. Narration is third person: write it again using only the pronoun sets "
+                        + "given for the two characters.");
+                    continue;
+                }
+
+                if (ForeignPronoun(corrected, guard) is { } wrongPronoun)
+                {
+                    Plugin.Log.Debug($"Roleplay reply used the pronoun '{wrongPronoun}', asking again");
+                    Note($" The previous attempt referred to a character as \"{wrongPronoun}\", which belongs "
+                         + "to neither character's pronoun set. Write it again using only the two pronoun sets "
+                         + "given above, even if both characters share one.");
+                    continue;
+                }
+
+                if (InventedName(written, corrected, guard) is { } wrongName)
+                {
+                    Plugin.Log.Debug($"Roleplay reply introduced the name '{wrongName}', asking again");
+                    // Naming the replacement outright: repeating the same
+                    // general nudge three times did not move it off the name.
+                    Note($" The previous attempt used the name \"{wrongName}\", which the message does not "
+                         + "contain. Replace every name in your reply with the matching pronoun "
+                         + $"({string.Join(", ", guard.SubjectWords)}) and change nothing else about it. "
+                         // Otherwise the model satisfies the length rule by
+                         // spelling out both names, then drops them and comes
+                         // back short, and rounds between the two.
+                         + "A name is never an acceptable way to make a line longer or different.");
+                    continue;
+                }
+
+                if (MissingNarrationSubject(text, corrected))
+                {
+                    Plugin.Log.Debug("Roleplay narration had no subject, asking again");
+                    Note(" The previous attempt opened the narration with a bare -ing verb and no subject. "
+                        + "Write it again as a full sentence beginning with the character's pronoun.");
+                    continue;
+                }
             }
 
             break;
@@ -392,7 +526,18 @@ public class AiManager : IDisposable
         // resolved here because it reads game state from the main thread.
         var tab = handler.MainWindow.CurrentTab;
         var tabId = tab.Identifier;
-        var rpInstruction = RpProfile.BuildInstruction(tab, mode == AiMode.Rewrite, text.Contains('*'));
+
+        // What the player typed, without the "/tell name " part. A rewrite is
+        // judged against this rather than against the draft it is changing.
+        var source = originalInput.StartsWith(prefix, StringComparison.Ordinal)
+            ? originalInput[prefix.Length..].Trim()
+            : originalInput.Trim();
+
+        // The player's own message decides whether this is speech or narration,
+        // not the draft: an intermediate rewrite must not be able to turn one
+        // into the other.
+        var rpInstruction = RpProfile.BuildInstruction(tab, mode == AiMode.Rewrite, source.Contains('*'));
+        var rpGuard = RpProfile.BuildGuard(tab);
 
         Busy = true;
         Task.Run(async () =>
@@ -400,7 +545,8 @@ public class AiManager : IDisposable
             try
             {
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId, rpInstruction, style?.Name);
+                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId,
+                    rpInstruction, style?.Name, source, rpGuard);
 
                 var suggestion = new AiSuggestion
                 {
@@ -609,6 +755,126 @@ public class AiManager : IDisposable
     private static bool AddedDialogue(string original, string result)
     {
         return !original.Contains('"') && result.Contains('"');
+    }
+
+    // Only a rewrite can lose these: a translation's "original" is Thai, which
+    // neither pattern matches, so the check quietly does nothing there.
+    private static readonly Regex GentleManner = new(
+        @"\b(slow|slowly|gentle|gently|soft|softly|light|lightly|quiet|quietly|careful|carefully|barely|tender|tenderly|unhurried|leisurely)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex ForcefulManner = new(
+        @"\b(slam|slams|slamming|pound|pounds|pounding|hard|harder|fast|faster|rough|roughly|violent|violently|ram|rams|yank|yanks|savage|brutal|brutally)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// True when force appears in the result that the unhurried original had
+    /// no trace of. Intensity is meant to live in the vocabulary; this is the
+    /// model rewriting what actually happened.
+    /// </summary>
+    /// <remarks>
+    /// Written first as "the gentle word disappeared", which the model simply
+    /// stepped around: *slowly lowers her hips* came back as *slowly slams her
+    /// hips down hard*, keeping the word and contradicting it in the same
+    /// breath. What matters is the force arriving, not the calm leaving.
+    /// </remarks>
+    private static bool ChangedTheManner(string original, string result)
+    {
+        return GentleManner.IsMatch(original)
+               && !ForcefulManner.IsMatch(original)
+               && ForcefulManner.IsMatch(result);
+    }
+
+    #region Pronoun guards
+    // Quoted speech is the character talking, where "you" is the other
+    // character and correct. Only what is left is narration.
+    private static readonly Regex QuotedSpan = new("\"[^\"]*\"", RegexOptions.Compiled);
+    private static readonly Regex SecondPerson =
+        new(@"\b(you|your|yours)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex NarrationOpensWithGerund =
+        new(@"^\s*\*+\s*\w+ing\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static string NarrationOnly(string result) => QuotedSpan.Replace(result, " ");
+
+    /// <summary>
+    /// Told to write two characters who share a pronoun set, the model would
+    /// quietly move one of them into the second person instead.
+    /// </summary>
+    private static bool SecondPersonNarration(string original, string result)
+    {
+        return original.Contains('*') && SecondPerson.IsMatch(NarrationOnly(result));
+    }
+
+    /// <summary> A pronoun belonging to neither character's set, for the same reason. </summary>
+    private static string? ForeignPronoun(string result, RpGuard guard)
+    {
+        var narration = NarrationOnly(result);
+        return guard.ForbiddenPronouns.FirstOrDefault(
+            word => Regex.IsMatch(narration, $@"\b{word}\b", RegexOptions.IgnoreCase));
+    }
+
+    /// <summary>
+    /// The third escape: reaching for a character's name to tell two
+    /// same-pronoun characters apart, in a message that never named anyone.
+    /// </summary>
+    private static string? InventedName(string original, string result, RpGuard guard)
+    {
+        // When both characters share a pronoun set, a name is what tells them
+        // apart, so it is wanted rather than a mistake.
+        if (guard.NamesAllowed)
+            return null;
+
+        foreach (var full in new[] { guard.SelfName, guard.PartnerName })
+        {
+            var name = full.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+            if (name.Length < 3)
+                continue;
+
+            if (!original.Contains(name, StringComparison.OrdinalIgnoreCase)
+                && Regex.IsMatch(result, $@"\b{Regex.Escape(name)}\b", RegexOptions.IgnoreCase))
+                return name;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The fourth: dropping the subject altogether rather than choosing a
+    /// pronoun, which turns an emote into a bare participle phrase.
+    /// </summary>
+    private static bool MissingNarrationSubject(string original, string result)
+    {
+        return original.TrimStart().StartsWith('*') && NarrationOpensWithGerund.IsMatch(result);
+    }
+    #endregion
+
+    private static readonly Regex ClauseBreak = new(@"[,;.!?]+", RegexOptions.Compiled);
+
+    /// <summary>
+    /// True when the reply is built from noticeably more statements than the
+    /// Thai it came from. Thai separates its clauses with spaces, so counting
+    /// those against the reply's clauses catches the failure this level keeps
+    /// producing: a correct translation with two further demands stapled on.
+    /// Slack by two: at one it collided with the Longer button, which has to
+    /// add clauses to do its job, and the two rules deadlocked into a line
+    /// that could neither grow nor stay as it was.
+    /// </summary>
+    private static bool PaddedWithExtraClauses(string thai, string result)
+    {
+        if (!thai.Any(c => c is >= '฀' and <= '๿'))
+            return false;
+
+        var chunks = thai.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var clauses = ClauseBreak.Split(result.Replace('*', ' ')).Count(part => part.Any(char.IsLetterOrDigit));
+        return clauses > chunks + 2;
+    }
+
+    /// <summary> Sentences with something in them; asterisks are formatting, not punctuation. </summary>
+    private static int SentenceCount(string text)
+    {
+        return text.Replace('*', ' ')
+            .Split(['.', '!', '?'], StringSplitOptions.RemoveEmptyEntries)
+            .Count(part => part.Any(char.IsLetterOrDigit));
     }
 
     /// <summary> Letters and digits only, for "did this actually change" checks. </summary>

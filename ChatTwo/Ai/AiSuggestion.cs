@@ -41,16 +41,38 @@ public readonly record struct AiStyle(string Name, string Instruction)
         // "Say more" reads as "describe more", and a short spoken line has
         // nothing to describe without inventing it, so the ways of getting
         // longer are named outright.
-        new("Longer", "Make this noticeably longer than the input, but only by drawing out what it already says: "
+        new("Longer", "Make this somewhat longer than the input, but only by drawing out what it already says: "
                       + "emphasis, repetition, hesitation and the filler a person actually uses out loud, and richer "
                       + "phrasing of the same content. Never describe anything the message does not already describe, "
                       + "and never introduce new actions, participants or events. If the message is narration, it stays "
-                      + "narration: do not give the character anything to say."),
+                      + "narration: do not give the character anything to say. "
+                      // Left at "add words", it added demands: a line about
+                      // being rough came back with three new instructions
+                      // attached to it.
+                      + "The extra words are filler and emphasis for what is already there, never a further demand, "
+                      + "a further act or a further detail. In particular your result must not contain a want, a "
+                      + "request or an instruction that the input does not already contain: if the input asks for one "
+                      + "thing, the longer version asks for that same one thing at greater length. "
+                      // Unbounded, one press turned a six-word line into 549
+                      // characters of looping repetition, which the game
+                      // truncates at 500 anyway.
+                      + "Stop at about twice the length of the input: this is still one chat message, not a paragraph, "
+                      + "and repeating the same demand a dozen times is worse than not lengthening it at all."),
         new("Shorter", "Make this noticeably shorter than the input: keep only what matters, cut description that is "
                        + "not needed, and never return something as long as or longer than what you were given."),
-        new("Bolder", "Make the wording noticeably more direct and intense than the input, swapping soft or vague "
+        new("Bolder", "Make the wording noticeably more direct and intense than the input, swapping vague or coy "
                       + "words for blunt, unambiguous ones. Do not introduce new actions, thoughts or dialogue, "
-                      + "and never return the input unchanged."),
+                      + "and never return the input unchanged. "
+                      // "Swap soft words for blunt ones" read as licence to
+                      // turn a deliberately slow emote into "slams her hips
+                      // down hard", which every later press then inherited.
+                      + "Boldness is in the vocabulary, never in the action: whatever the input says about how "
+                      + "something is done stays true, so a slow, gentle, careful or quiet action is still slow, "
+                      + "gentle, careful or quiet when you are finished with it. "
+                      // Left free to grow, it answered a one-line demand with
+                      // five, the last of which was an action nobody wrote.
+                      + "This is a change of words, so your result has the same number of sentences as the input: "
+                      + "replace words inside them rather than adding another one."),
     ];
 
     /// <summary> Built-in styles for the mode, followed by the user's own. </summary>

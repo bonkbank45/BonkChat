@@ -237,6 +237,26 @@ public class Configuration : IPluginConfiguration
     public const string TargetHeader =
         "[The message to work on, and the only thing your reply may contain:]";
 
+    // A rewrite button works on English the AI produced a moment ago, so the
+    // player's own words were never in the request: every press was free to
+    // add a little more, and the additions compounded down the chain because
+    // the next press treated them as source material.
+    public const string SourceHeader =
+        "[What the player actually wrote. This is the authority on what happens:]";
+
+    public const string RewriteAnchorRule =
+        " The player's own original message is supplied above the text you are rewriting. Everything your result "
+        + "says must come from that original: you may reword it, lengthen it, shorten it or make it blunter, but "
+        + "your result must not contain a single action, participant, body part, object, place or event the "
+        + "original does not contain. If the text you were given has already drifted away from the original, "
+        + "leave those additions out rather than carrying them forward."
+        // Bolder on a deliberately slow emote came back as "slams her hips
+        // down hard": the model reads intensity as a licence to change what
+        // happened, and then every later press inherited it.
+        + " Your result must also never contradict the original. Whatever the original says about how something is "
+        + "done - slow, gentle, quiet, brief, hesitant - stays true in your result. Intensity belongs in the words "
+        + "you choose, never in changing the action itself.";
+
     public const string ContextRule =
         "The conversation so far is provided as context. Use it only to understand who is speaking, "
         + "the situation and the writing style. "
@@ -269,7 +289,13 @@ public class Configuration : IPluginConfiguration
     public const string RoleplayRewriteBasePrompt =
         "You are helping a Thai player write roleplay in an online game. "
         + "Rewrite the message below as English roleplay prose; if any of it is in Thai, translate that part. "
-        + "The result must differ from the input.";
+        + "The result must differ from the input in its wording. "
+        // Constrained on every other side, the model found this as the one
+        // cheap way to look different, and every press of every button came
+        // back with the character names swapped in for the pronouns.
+        + "Swapping a pronoun for a character's name is not a difference, and neither is changing only punctuation "
+        + "or capitalisation. When a line is short enough that there is genuinely nothing left to change, say it "
+        + "the way it already is rather than reaching for one of those.";
 
     // "No quotes" used to be in here and fought the roleplay rule about
     // keeping *asterisks* and "quotes": models read it as permission to strip
