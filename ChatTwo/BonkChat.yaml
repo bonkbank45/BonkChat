@@ -22,6 +22,13 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.58.0**
+  - Asking for a longer emote no longer puts words in your character's
+    mouth. Quoted speech appearing in a reply to a message that had none
+    is now caught and asked again
+  - A rewrite that changes only punctuation counts as no change, so it
+    gets another attempt rather than looking like a dead button
+
   **BonkChat 1.57.0**
   - Rewriting a spoken line no longer sends it the narration rules at all,
     which is what made the buttons wrap it in an invented emote or hand

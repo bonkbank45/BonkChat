@@ -44,7 +44,8 @@ public readonly record struct AiStyle(string Name, string Instruction)
         new("Longer", "Make this noticeably longer than the input, but only by drawing out what it already says: "
                       + "emphasis, repetition, hesitation and the filler a person actually uses out loud, and richer "
                       + "phrasing of the same content. Never describe anything the message does not already describe, "
-                      + "and never introduce new actions, participants or events."),
+                      + "and never introduce new actions, participants or events. If the message is narration, it stays "
+                      + "narration: do not give the character anything to say."),
         new("Shorter", "Make this noticeably shorter than the input: keep only what matters, cut description that is "
                        + "not needed, and never return something as long as or longer than what you were given."),
         new("Bolder", "Make the wording noticeably more direct and intense than the input, swapping soft or vague "

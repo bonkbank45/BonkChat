@@ -283,7 +283,7 @@ public class AiManager : IDisposable
 
             // A rewrite that hands back what it was given looks like a dead
             // button, so ask again rather than showing the user nothing.
-            if (mode == AiMode.Rewrite && string.Equals(corrected, text.Trim(), StringComparison.OrdinalIgnoreCase))
+            if (mode == AiMode.Rewrite && WordsOnly(corrected) == WordsOnly(text))
             {
                 Plugin.Log.Debug("Rewrite returned the original text, asking again");
                 correction = " The previous attempt returned the message unchanged, which is not acceptable. "
@@ -305,6 +305,15 @@ public class AiManager : IDisposable
                 Plugin.Log.Debug("Shorter did not shorten the text, asking again");
                 correction = " The previous attempt was not shorter than the message. Cut it down so the result is "
                              + "clearly shorter than what you were given.";
+                continue;
+            }
+
+            if (rpInstruction != null && AddedDialogue(text, corrected))
+            {
+                Plugin.Log.Debug("Roleplay reply invented dialogue, asking again");
+                correction = " The previous attempt put words in the character's mouth that the message does not "
+                             + "contain. Write it again with no quoted speech at all, keeping only what the message "
+                             + "itself says.";
                 continue;
             }
 
@@ -590,6 +599,16 @@ public class AiManager : IDisposable
     private static bool NarratedASpokenLine(string original, string result)
     {
         return !original.Contains('*') && NarrationStart.IsMatch(result);
+    }
+
+    /// <summary>
+    /// Quoted speech appearing in the reply to a message that had none means
+    /// the model wrote lines for the character. Asking for a longer emote is
+    /// enough to trigger it.
+    /// </summary>
+    private static bool AddedDialogue(string original, string result)
+    {
+        return !original.Contains('"') && result.Contains('"');
     }
 
     /// <summary> Letters and digits only, for "did this actually change" checks. </summary>
