@@ -22,6 +22,18 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.56.0**
+  - Fixed the rewrite buttons doing nothing to a spoken line in roleplay
+    mode. The rules forbade adding "dialogue", which also forbade saying
+    the same thing at greater length, so the buttons had nothing they
+    were allowed to do
+  - Length is now decided by the button you pressed, while the rules
+    about asterisks, speech, narration and inventing content always win,
+    so Longer can no longer narrate a line you meant as speech
+  - Up to two retries when the model slips, instead of one
+  - If a line really has no shorter or blunter form, you get told rather
+    than seeing the same text and wondering if the button broke
+
   **BonkChat 1.55.0**
   - Explicit tone is now actually bolder than Sensual. It takes the
     boldest reasonable reading of what you wrote instead of the politest

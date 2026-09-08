@@ -76,19 +76,39 @@ public static class RpExt
 
     public static string Name(this RpDetail detail) => detail.ToString();
 
+    /// <summary>
+    /// What the level allows to be added. Always applied, including on
+    /// rewrites: this carries the no-invention rule, and dropping it let a
+    /// Longer press turn a spoken line into an invented scene.
+    /// </summary>
     public static string Instruction(this RpDetail detail) => detail switch
     {
+        // These forbid new events, not new words. Forbidding added "dialogue"
+        // also forbade saying the same thing at greater length, which left the
+        // rewrite buttons with nothing they were allowed to do to a spoken line.
         RpDetail.Faithful =>
-            "Translate only what the message actually says. Do not add actions, sensations, reactions or narration "
-            + "that are not in it, and keep the result about as long as the original.",
+            "Convey only what the message actually says. You may choose different words for it, but do not add "
+            + "actions, events, participants, sensations or reactions that are not in it.",
         RpDetail.Balanced =>
-            "Write flowing prose rather than a literal word-for-word translation, but never add actions, thoughts, "
-            + "dialogue or sensations that are not in the original. Keep the result close to the length of the original message.",
+            "Write flowing prose rather than a literal word-for-word translation. You may reword the message and add "
+            + "emphasis freely, but never add actions, events, participants or sensations the original does not contain.",
         RpDetail.Embellish =>
             "Write flowing prose rather than a literal word-for-word translation, and flesh the message out with sensory "
-            + "description of what the message itself describes, following the length and level of detail of the previous "
-            + "messages. Never introduce actions, body parts, positions, participants or dialogue the message does not "
-            + "mention, and keep it to a sentence or two when there is no context to follow.",
+            + "description of what the message itself describes. You may reword and expand freely, but never introduce "
+            + "actions, body parts, positions, participants or events the message does not mention.",
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// How long the result should be. Left out when a rewrite button drives
+    /// the request, because the button decides the length instead.
+    /// </summary>
+    public static string LengthRule(this RpDetail detail) => detail switch
+    {
+        RpDetail.Faithful => "Keep the result about as long as the original.",
+        RpDetail.Balanced => "Keep the result close to the length of the original message.",
+        RpDetail.Embellish => "Follow the length and level of detail of the previous messages, "
+                              + "and keep it to a sentence or two when there is no context to follow.",
         _ => string.Empty,
     };
 
@@ -108,7 +128,13 @@ public static class RpExt
 /// </summary>
 public static class RpProfile
 {
-    public static string? BuildInstruction(Tab? tab)
+    /// <param name="forRewrite">
+    /// True when a rewrite button drives the request. The detail level is left
+    /// out then, because the button already says what to change and the level's
+    /// "keep close to the original length" pinned spoken lines in place: the
+    /// text was already English, so the model kept handing it straight back.
+    /// </param>
+    public static string? BuildInstruction(Tab? tab, bool forRewrite = false)
     {
         if (tab is not { RoleplayMode: true })
             return null;
@@ -142,6 +168,9 @@ public static class RpProfile
         builder.Append(" Translate the whole message into English. Never leave Thai in your reply, "
                        + "and never repeat the player's original text alongside the translation.");
         builder.Append(' ').Append(tab.RpDetail.Instruction());
+        if (!forRewrite)
+            builder.Append(' ').Append(tab.RpDetail.LengthRule());
+
         builder.Append(' ').Append(tab.RpTone.Instruction());
 
         // Last, so no detail or tone setting can talk the model into narrating
@@ -151,9 +180,9 @@ public static class RpProfile
         builder.Append(" Decide the following from the asterisks alone, never from what the message is about, and let "
                        + "nothing above override it. Text wrapped in *asterisks* is narration: write it in third person "
                        + "present tense with an explicit subject, like *She smiles.* rather than *smiles*. Text that is "
-                       + "not wrapped in asterisks is the character speaking out loud: translate it as first-person "
-                       + "spoken English exactly as she would say it, keeping I as I and you as you, and never rewrite "
-                       + "it as narration about the characters. Spoken lines use everyday contractions such as I'm, "
+                       + "not wrapped in asterisks is the character speaking out loud: render it as first-person "
+                       + "spoken English, the way she would say it aloud, keeping I as I and you as you, and never "
+                       + "as narration about the characters. Spoken lines use everyday contractions such as I'm, "
                        + "don't, can't and you're, the way people actually talk, never stiff textbook phrasing. "
                        + "Quotation marks around speech are part of the message: if the player wrote them, your reply "
                        + "keeps them in the same place.");

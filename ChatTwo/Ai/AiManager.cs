@@ -115,10 +115,14 @@ public class AiManager : IDisposable
 
             prompt.Append(rpInstruction);
 
-            // The requested change goes last so it outranks the standing
-            // rules it contradicts, such as matching the previous length.
+            // The requested change goes last so it outranks the standing rules
+            // it contradicts, such as the length. The exemption matters: a
+            // Longer press was overriding the speech rule and narrating a line
+            // the player meant as dialogue.
             if (mode == AiMode.Rewrite && styleInstruction != null)
-                prompt.Append(" Now apply this change, which overrides the guidance above wherever they disagree: ")
+                prompt.Append(" Now apply this change, which overrides the guidance above wherever they disagree, "
+                              + "except for the rules about asterisks, speech, narration and inventing content, "
+                              + "which always win: ")
                       .Append(styleInstruction);
         }
         else
@@ -241,13 +245,15 @@ public class AiManager : IDisposable
         if (useCache && TryGetCached(key, out var cached))
             return cached;
 
-        string corrected;
-        List<string> explanations;
+        var corrected = string.Empty;
+        var explanations = new List<string>();
         var correction = string.Empty;
 
-        // One retry, with the mistake spelled out, for the two failures a
-        // prompt alone does not reliably prevent.
-        for (var attempt = 0; ; attempt++)
+        // Up to two retries, each naming the mistake, for the failures a
+        // prompt alone does not reliably prevent. Two rather than one because
+        // a single retry can be spent on the first problem while the second
+        // still slips through, and the prompt is cached so this is cheap.
+        for (var attempt = 0; attempt < 3; attempt++)
         {
             var response = await CurrentProvider.ChatAsync(new AiRequest
             {
@@ -271,14 +277,14 @@ public class AiManager : IDisposable
             corrected = PreserveEmoteWrapping(text, corrected);
             explanations = explanations.Select(e => StripEmoji(e).Trim()).Where(e => e.Length > 0).ToList();
 
-            if (attempt > 0)
+            if (attempt == 2)
                 break;
 
             // A rewrite that hands back what it was given looks like a dead
             // button, so ask again rather than showing the user nothing.
             if (mode == AiMode.Rewrite && string.Equals(corrected, text.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                Plugin.Log.Debug("Rewrite returned the original text, asking once more");
+                Plugin.Log.Debug("Rewrite returned the original text, asking again");
                 correction = " The previous attempt returned the message unchanged, which is not acceptable. "
                              + "Produce a genuinely different wording this time.";
                 continue;
@@ -286,7 +292,7 @@ public class AiManager : IDisposable
 
             if (rpInstruction != null && NarratedASpokenLine(text, corrected))
             {
-                Plugin.Log.Debug("Roleplay reply narrated a spoken line, asking once more");
+                Plugin.Log.Debug("Roleplay reply narrated a spoken line, asking again");
                 correction = " The previous attempt narrated a line that had no asterisks. That message is the "
                              + "character speaking out loud: write it again as first-person spoken dialogue, "
                              + "with no asterisks and no third-person description of the characters.";
@@ -295,6 +301,11 @@ public class AiManager : IDisposable
 
             break;
         }
+
+        // Some lines really have no shorter or blunter form. Say so instead of
+        // redisplaying the same text and leaving the button looking broken.
+        if (mode == AiMode.Rewrite && string.Equals(corrected, text.Trim(), StringComparison.OrdinalIgnoreCase))
+            WrapperUtil.AddNotification("The AI could not improve on that line", NotificationType.Info);
 
         if (useCache)
             StoreInCache(key, corrected, explanations);
@@ -353,7 +364,7 @@ public class AiManager : IDisposable
         // resolved here because it reads game state from the main thread.
         var tab = handler.MainWindow.CurrentTab;
         var tabId = tab.Identifier;
-        var rpInstruction = RpProfile.BuildInstruction(tab);
+        var rpInstruction = RpProfile.BuildInstruction(tab, mode == AiMode.Rewrite);
 
         Busy = true;
         Task.Run(async () =>
