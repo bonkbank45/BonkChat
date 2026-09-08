@@ -143,7 +143,10 @@ public static class RpProfile
                        + "present tense with an explicit subject, like *She smiles.* rather than *smiles*. Text that is "
                        + "not wrapped in asterisks is the character speaking out loud: translate it as first-person "
                        + "spoken English exactly as she would say it, keeping I as I and you as you, and never rewrite "
-                       + "it as narration about the characters.");
+                       + "it as narration about the characters. Spoken lines use everyday contractions such as I'm, "
+                       + "don't, can't and you're, the way people actually talk, never stiff textbook phrasing. "
+                       + "Quotation marks around speech are part of the message: if the player wrote them, your reply "
+                       + "keeps them in the same place.");
 
         // Marked as an override, or the no-invention rules above win and the
         // player's own instruction is quietly ignored.

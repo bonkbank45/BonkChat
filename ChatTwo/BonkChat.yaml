@@ -22,6 +22,12 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.54.1**
+  - Spoken lines now use contractions the way people actually talk:
+    "Don't stop" instead of "Do not stop yet"
+  - Quotation marks around speech survive again on lines that mix an
+    emote with dialogue
+
   **BonkChat 1.54.0 - Roleplay translation, rebuilt against live tests**
   - Speech stays speech. A line without asterisks is your character
     talking, so "it feels so good" no longer comes back as "she feels
