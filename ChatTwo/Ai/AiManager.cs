@@ -221,7 +221,8 @@ public class AiManager : IDisposable
     /// served from an LRU cache when repeated.
     /// </summary>
     public async Task<(string Corrected, List<string> Explanations)> RunAsync(
-        AiMode mode, string text, CancellationToken token, string? styleInstruction = null, Guid? tabId = null, string? rpInstruction = null)
+        AiMode mode, string text, CancellationToken token, string? styleInstruction = null, Guid? tabId = null,
+        string? rpInstruction = null, string? styleName = null)
     {
         if (!Usage.CanSpend())
             throw new InvalidOperationException("Monthly AI budget reached; raise it or resume in the AI settings");
@@ -290,6 +291,23 @@ public class AiManager : IDisposable
                 continue;
             }
 
+            // Length is measurable, so it gets checked rather than trusted.
+            if (styleName == "Longer" && corrected.Length <= text.Trim().Length)
+            {
+                Plugin.Log.Debug("Longer did not lengthen the text, asking again");
+                correction = " The previous attempt was not longer than the message. Make it clearly longer by "
+                             + "drawing out what is already there, without describing anything new.";
+                continue;
+            }
+
+            if (styleName == "Shorter" && corrected.Length >= text.Trim().Length)
+            {
+                Plugin.Log.Debug("Shorter did not shorten the text, asking again");
+                correction = " The previous attempt was not shorter than the message. Cut it down so the result is "
+                             + "clearly shorter than what you were given.";
+                continue;
+            }
+
             if (rpInstruction != null && NarratedASpokenLine(text, corrected))
             {
                 Plugin.Log.Debug("Roleplay reply narrated a spoken line, asking again");
@@ -304,7 +322,8 @@ public class AiManager : IDisposable
 
         // Some lines really have no shorter or blunter form. Say so instead of
         // redisplaying the same text and leaving the button looking broken.
-        if (mode == AiMode.Rewrite && string.Equals(corrected, text.Trim(), StringComparison.OrdinalIgnoreCase))
+        // Punctuation-only differences count as the same text here.
+        if (mode == AiMode.Rewrite && WordsOnly(corrected) == WordsOnly(text))
             WrapperUtil.AddNotification("The AI could not improve on that line", NotificationType.Info);
 
         if (useCache)
@@ -364,7 +383,7 @@ public class AiManager : IDisposable
         // resolved here because it reads game state from the main thread.
         var tab = handler.MainWindow.CurrentTab;
         var tabId = tab.Identifier;
-        var rpInstruction = RpProfile.BuildInstruction(tab, mode == AiMode.Rewrite);
+        var rpInstruction = RpProfile.BuildInstruction(tab, mode == AiMode.Rewrite, text.Contains('*'));
 
         Busy = true;
         Task.Run(async () =>
@@ -372,7 +391,7 @@ public class AiManager : IDisposable
             try
             {
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId, rpInstruction);
+                var (corrected, explanations) = await RunAsync(mode, text, cts.Token, style?.Instruction, tabId, rpInstruction, style?.Name);
 
                 var suggestion = new AiSuggestion
                 {
@@ -571,6 +590,12 @@ public class AiManager : IDisposable
     private static bool NarratedASpokenLine(string original, string result)
     {
         return !original.Contains('*') && NarrationStart.IsMatch(result);
+    }
+
+    /// <summary> Letters and digits only, for "did this actually change" checks. </summary>
+    private static string WordsOnly(string text)
+    {
+        return new string(text.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
     }
 
     /// <summary>

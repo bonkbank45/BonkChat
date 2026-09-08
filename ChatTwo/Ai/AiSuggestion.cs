@@ -38,10 +38,13 @@ public readonly record struct AiStyle(string Name, string Instruction)
         // Both say so in words rather than trusting "condense" or "expand":
         // the tone rules push towards richer wording, and Shorter came back
         // longer than what it was given.
-        new("Longer", "Make this noticeably longer than the input by expanding what it already says: richer phrasing, "
-                      + "and more sensory description of what the message itself describes. For a spoken line that "
-                      + "means saying more in the character's own voice, not narrating actions around it. "
-                      + "Do not introduce new actions, participants or events."),
+        // "Say more" reads as "describe more", and a short spoken line has
+        // nothing to describe without inventing it, so the ways of getting
+        // longer are named outright.
+        new("Longer", "Make this noticeably longer than the input, but only by drawing out what it already says: "
+                      + "emphasis, repetition, hesitation and the filler a person actually uses out loud, and richer "
+                      + "phrasing of the same content. Never describe anything the message does not already describe, "
+                      + "and never introduce new actions, participants or events."),
         new("Shorter", "Make this noticeably shorter than the input: keep only what matters, cut description that is "
                        + "not needed, and never return something as long as or longer than what you were given."),
         new("Bolder", "Make the wording noticeably more direct and intense than the input, swapping soft or vague "

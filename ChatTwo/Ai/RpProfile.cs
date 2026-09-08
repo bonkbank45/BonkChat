@@ -134,7 +134,13 @@ public static class RpProfile
     /// "keep close to the original length" pinned spoken lines in place: the
     /// text was already English, so the model kept handing it straight back.
     /// </param>
-    public static string? BuildInstruction(Tab? tab, bool forRewrite = false)
+    /// <param name="hasEmoteMarkup">
+    /// Whether the message contains asterisks. When it does not, the whole
+    /// narration half of the rules is left out instead of being sent and then
+    /// argued with: keeping it made the model wrap spoken lines in invented
+    /// emotes, or freeze and hand the line straight back.
+    /// </param>
+    public static string? BuildInstruction(Tab? tab, bool forRewrite = false, bool hasEmoteMarkup = true)
     {
         if (tab is not { RoleplayMode: true })
             return null;
@@ -149,20 +155,29 @@ public static class RpProfile
 
         var builder = new StringBuilder();
 
-        // Scoped to narration on purpose. Declaring the pronouns without that
-        // scope kept pulling spoken lines into the third person, so "it feels
-        // good" came back as "she feels good".
-        var selfIs = self.Length > 0 ? $" My character is {self}." : " ";
-        builder.Append($"{selfIs} Use {tab.RpSelfPronoun.Subject()} for my character in narration only; "
-                       + "in spoken lines my character speaks in the first person as I.");
+        var selfIs = self.Length > 0 ? $" My character is {self}." : string.Empty;
+        var partnerIs = partner.Length > 0 ? $" The other character is {partner}." : string.Empty;
 
-        var partnerIs = partner.Length > 0 ? $" The other character is {partner}." : " ";
-        builder.Append($"{partnerIs} Use {tab.RpPartnerPronoun.Subject()} for the other character in narration only; "
-                       + "in spoken lines my character addresses them as you.");
-
-        builder.Append(" Reproduce the message's formatting exactly. Asterisks and quotation marks are roleplay "
-                       + "formatting rather than markdown: keep the ones that are there, and never add asterisks "
-                       + "or quotation marks that the message does not already have.");
+        if (hasEmoteMarkup)
+        {
+            // Scoped to narration on purpose. Declaring the pronouns without
+            // that scope kept pulling spoken lines into the third person, so
+            // "it feels good" came back as "she feels good".
+            builder.Append($"{selfIs} Use {tab.RpSelfPronoun.Subject()} for my character in narration only; "
+                           + "in spoken lines my character speaks in the first person as I.");
+            builder.Append($"{partnerIs} Use {tab.RpPartnerPronoun.Subject()} for the other character in narration "
+                           + "only; in spoken lines my character addresses them as you.");
+            builder.Append(" Reproduce the message's formatting exactly. Asterisks and quotation marks are roleplay "
+                           + "formatting rather than markdown: keep the ones that are there, and never add asterisks "
+                           + "or quotation marks that the message does not already have.");
+        }
+        else
+        {
+            builder.Append(selfIs).Append(partnerIs);
+            builder.Append(" My character speaks in the first person as I and addresses the other character as you.");
+            builder.Append(" The message has no asterisks, so your reply must not contain any either, "
+                           + "and must not be wrapped in quotation marks that the message does not already have.");
+        }
         builder.Append(" The names are for your reference only: refer to the characters by pronoun, "
                        + "and only write a name when the original message names someone.");
         builder.Append(" Translate the whole message into English. Never leave Thai in your reply, "
@@ -177,15 +192,26 @@ public static class RpProfile
         // a line the player meant as speech. Third person belongs to narration
         // only: applying it everywhere turned "it feels good" into "she feels
         // good", and dropping the subject turned an emote into a bare verb.
-        builder.Append(" Decide the following from the asterisks alone, never from what the message is about, and let "
-                       + "nothing above override it. Text wrapped in *asterisks* is narration: write it in third person "
-                       + "present tense with an explicit subject, like *She smiles.* rather than *smiles*. Text that is "
-                       + "not wrapped in asterisks is the character speaking out loud: render it as first-person "
-                       + "spoken English, the way she would say it aloud, keeping I as I and you as you, and never "
-                       + "as narration about the characters. Spoken lines use everyday contractions such as I'm, "
-                       + "don't, can't and you're, the way people actually talk, never stiff textbook phrasing. "
-                       + "Quotation marks around speech are part of the message: if the player wrote them, your reply "
-                       + "keeps them in the same place.");
+        if (hasEmoteMarkup)
+        {
+            builder.Append(" Decide the following from the asterisks alone, never from what the message is about, and "
+                           + "let nothing above override it. Text wrapped in *asterisks* is narration: write it in third "
+                           + "person present tense with an explicit subject, like *She smiles.* rather than *smiles*. "
+                           + "Text that is not wrapped in asterisks is the character speaking out loud: render it as "
+                           + "first-person spoken English, keeping I as I and you as you, never as narration about the "
+                           + "characters. Quotation marks around speech are part of the message: if the player wrote "
+                           + "them, your reply keeps them in the same place.");
+        }
+        else
+        {
+            builder.Append(" This message is the character speaking out loud, and let nothing above override this: your "
+                           + "entire reply is that spoken line and nothing else. No narration, no description of what "
+                           + "anyone does, no third-person sentences about the characters, no asterisks. Write only what "
+                           + "she says aloud.");
+        }
+
+        builder.Append(" Spoken lines use everyday contractions such as I'm, don't, can't and you're, the way people "
+                       + "actually talk, never stiff textbook phrasing.");
 
         // Marked as an override, or the no-invention rules above win and the
         // player's own instruction is quietly ignored.

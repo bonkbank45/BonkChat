@@ -22,6 +22,17 @@ tags:
   - Chat
   - Replacement
 changelog:  |-
+  **BonkChat 1.57.0**
+  - Rewriting a spoken line no longer sends it the narration rules at all,
+    which is what made the buttons wrap it in an invented emote or hand
+    it straight back
+  - Longer lengthens a spoken line with emphasis and repetition instead of
+    inventing what is happening
+  - Longer and Shorter now check the length they produced and ask again if
+    the result went the wrong way
+  - "Could not improve on that line" also covers replies that changed only
+    the punctuation
+
   **BonkChat 1.56.0**
   - Fixed the rewrite buttons doing nothing to a spoken line in roleplay
     mode. The rules forbade adding "dialogue", which also forbade saying
